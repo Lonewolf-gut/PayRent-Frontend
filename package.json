@@ -3,15 +3,22 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "next dev --port 3000 --webpack",
     "dev:webpack": "next dev --port 3000 --webpack",
+    "setup:env": "node scripts/setup-env.js",
+    "clean": "node scripts/clean-cache.js",
+    "dev:turbo": "next dev --port 3000",
     "build": "npm run db:generate && next build --webpack",
+    "postinstall": "npm run db:generate || echo Prisma generate skipped - run npm run db:generate manually",
     "start": "next start --port 3000",
     "lint": "eslint",
-    "db:generate": "prisma generate --schema ../payrent-backend/prisma/schema.prisma"
+    "db:generate": "prisma generate --schema prisma/schema.prisma"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
-    "@base-ui/react": "^1.5.0",
+    "@base-ui/react": "1.6.0",
     "@hookform/resolvers": "^5.4.0",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-tooltip": "^1.2.8",

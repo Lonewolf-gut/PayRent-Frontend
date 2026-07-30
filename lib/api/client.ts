@@ -1,9 +1,20 @@
 /**
  * Resolve API paths for the separated backend.
- * When NEXT_PUBLIC_API_URL is unset, relative /api/* requests are proxied by Next.js rewrites.
+ * Browser requests can use relative /api/* (proxied by Next.js rewrites).
+ * Server-side fetch (e.g. NextAuth authorize) requires an absolute backend URL.
  */
 export function getApiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+  const publicUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (publicUrl) return publicUrl.replace(/\/$/, "");
+
+  const serverUrl = process.env.API_URL?.trim();
+  if (serverUrl) return serverUrl.replace(/\/$/, "");
+
+  if (typeof window === "undefined") {
+    return "http://localhost:3001";
+  }
+
+  return "";
 }
 
 export function apiUrl(path: string): string {

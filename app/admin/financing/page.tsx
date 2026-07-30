@@ -9,6 +9,7 @@ import { FINANCING_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LenderTagPanel } from "@/components/admin/lender-tag-panel";
 
 export default function AdminFinancingPage() {
   const queryClient = useQueryClient();
@@ -112,11 +113,19 @@ export default function AdminFinancingPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               {r.investment?.lender?.user?.email ? (
-                <p>Lender: {r.investment.lender.user.email}</p>
+                <p>Funded by: {r.investment.lender.user.email}</p>
+              ) : r.lenderTags?.length ? (
+                <p>
+                  Tagged lenders:{" "}
+                  {r.lenderTags
+                    .map((t: { lender: { user: { email: string } } }) => t.lender.user.email)
+                    .join(", ")}
+                </p>
               ) : (
-                <p>Awaiting lender assignment</p>
+                <p>Open to all lenders — no tags yet</p>
               )}
               <p>Submitted {new Date(r.createdAt).toLocaleString()}</p>
+              <LenderTagPanel financingRequestId={r.id} status={r.status} />
               {r.status === "ELIGIBILITY_PENDING" ? (
                 <div className="space-y-3 border-t pt-4">
                   <div>

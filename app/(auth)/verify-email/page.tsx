@@ -14,7 +14,7 @@ import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
 import type { UserRole } from "@prisma/client";
 
 type VerificationDelivery = {
-  deliveryMode?: "smtp" | "ethereal" | "log" | null;
+  deliveryMode?: "resend" | "smtp" | "ethereal" | "log" | null;
   previewUrl?: string | null;
   devCode?: string | null;
   realEmailExpected?: boolean;
@@ -221,8 +221,9 @@ export default function VerifyEmailPage() {
               {devCode}
             </p>
             <p className="mt-2 text-xs text-amber-900/80">
-              In local development, codes are shown here. They are not sent to your real inbox
-              unless SMTP is fully configured with a verified sending domain.
+              In local development, codes are shown here when email is not configured.
+              Set <code className="text-xs">RESEND_API_KEY</code> (dev) or SMTP credentials
+              (production) to deliver codes to your inbox.
             </p>
           </div>
         ) : null}

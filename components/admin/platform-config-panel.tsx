@@ -88,7 +88,7 @@ export function PlatformConfigPanel({ platform }: { platform?: PlatformConfig })
               />
               <StatusBadge
                 status={platform?.integrations?.email?.configured ? "APPROVED" : "PENDING"}
-                label="Email SMTP"
+                label={`Email (${platform?.integrations?.email?.provider ?? "—"})`}
               />
               <StatusBadge
                 status={platform?.integrations?.bankMandates?.configured ? "APPROVED" : "PENDING"}

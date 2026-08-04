@@ -39,12 +39,12 @@ const nextConfig: NextConfig = {
         source: `/api/auth/${path}`,
         destination: `${apiOrigin}/api/auth/${path}`,
       })),
-      afterFiles: [
-        {
-          source: "/api/:path*",
-          destination: `${apiOrigin}/api/:path*`,
-        },
-      ],
+      fallback: [
+  {
+    source: "/api/:path*",
+    destination: `${apiOrigin}/api/:path*`,
+  },
+],
     };
   },
   async redirects() {

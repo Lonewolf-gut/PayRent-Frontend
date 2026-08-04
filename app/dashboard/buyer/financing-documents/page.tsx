@@ -1,6 +1,15 @@
+"use client";
+
 import { FinancingDocumentsForm } from "@/components/properties/financing-documents-form";
+import { useMarkNavSectionSeen } from "@/hooks/use-mark-nav-section-seen";
 
 export default function TenantFinancingDocumentsPage() {
+  useMarkNavSectionSeen(
+    "/dashboard/buyer/financing-documents",
+    "/api/buyer/financing-documents",
+    ["PENDING", "REJECTED"]
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>

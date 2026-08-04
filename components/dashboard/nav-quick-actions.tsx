@@ -8,7 +8,7 @@ import { Bookmark, MessagesSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMessagesPath, getSavedPath } from "@/lib/nav/dashboard-quick-links";
 import {
-  fetchSavedPropertyCount,
+  fetchUnviewedSavedCount,
   SAVED_PROPERTY_COUNT_QUERY_KEY,
 } from "@/lib/nav/saved-property-views";
 import { cn } from "@/lib/utils";
@@ -62,7 +62,7 @@ export function NavQuickActions({ className }: { className?: string }) {
 
   const { data: savedCount = 0 } = useQuery({
     queryKey: SAVED_PROPERTY_COUNT_QUERY_KEY,
-    queryFn: fetchSavedPropertyCount,
+    queryFn: fetchUnviewedSavedCount,
     enabled: !!session?.user && role === "BUYER",
     refetchOnWindowFocus: true,
   });

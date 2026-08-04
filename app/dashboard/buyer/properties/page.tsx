@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +11,7 @@ import { MapPin } from "lucide-react";
 import {
   countUnviewedSavedProperties,
   extractSavedPropertyIds,
+  markAllSavedPropertiesViewedAndSyncCount,
   markSavedPropertyViewedAndSyncCount,
 } from "@/lib/nav/saved-property-views";
 
@@ -28,6 +30,11 @@ export default function TenantSavedPropertiesPage() {
 
   const propertyIds = extractSavedPropertyIds(saved ?? []);
   const unviewedCount = countUnviewedSavedProperties(propertyIds);
+
+  useEffect(() => {
+    if (!propertyIds.length) return;
+    markAllSavedPropertiesViewedAndSyncCount(queryClient, propertyIds);
+  }, [propertyIds, queryClient]);
 
   function handleOpenSaved(propertyId: string) {
     markSavedPropertyViewedAndSyncCount(queryClient, propertyIds, propertyId);
@@ -67,7 +74,7 @@ export default function TenantSavedPropertiesPage() {
             const itemUnviewed = countUnviewedSavedProperties([propertyId]) > 0;
 
             return (
-            <Card key={propertyId}>
+            <Card key={propertyId} className="rounded-none">
               <div className="relative aspect-video bg-muted">
                 {itemUnviewed ? (
                   <Badge className="absolute left-2 top-2 z-10 bg-emerald-600">New</Badge>

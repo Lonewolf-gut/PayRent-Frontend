@@ -27,6 +27,19 @@ export function markSavedPropertyViewed(propertyId: string) {
   return true;
 }
 
+export function markAllSavedPropertiesViewed(propertyIds: string[]) {
+  const viewed = readViewedIds();
+  let changed = false;
+  for (const id of propertyIds) {
+    if (!viewed.has(id)) {
+      viewed.add(id);
+      changed = true;
+    }
+  }
+  if (changed) writeViewedIds(viewed);
+  return changed;
+}
+
 export function clearSavedPropertyViewed(propertyId: string) {
   const viewed = readViewedIds();
   if (!viewed.has(propertyId)) return false;
@@ -48,11 +61,11 @@ export function extractSavedPropertyIds(
     .filter((id): id is string => Boolean(id));
 }
 
-export async function fetchSavedPropertyCount() {
+export async function fetchUnviewedSavedCount() {
   const res = await fetch("/api/properties/saved");
   const json = await res.json();
   if (!json.success) return 0;
-  return extractSavedPropertyIds(json.data ?? []).length;
+  return countUnviewedSavedProperties(extractSavedPropertyIds(json.data ?? []));
 }
 
 export function setSavedPropertyCountQuery(queryClient: QueryClient, count: number) {
@@ -60,7 +73,7 @@ export function setSavedPropertyCountQuery(queryClient: QueryClient, count: numb
 }
 
 export async function refreshSavedPropertyCountQuery(queryClient: QueryClient) {
-  const count = await fetchSavedPropertyCount();
+  const count = await fetchUnviewedSavedCount();
   setSavedPropertyCountQuery(queryClient, count);
   return count;
 }
@@ -78,5 +91,13 @@ export function markSavedPropertyViewedAndSyncCount(
   return nextCount;
 }
 
-/** @deprecated Use fetchSavedPropertyCount — navbar shows total saved listings. */
-export const fetchUnviewedSavedCount = fetchSavedPropertyCount;
+export function markAllSavedPropertiesViewedAndSyncCount(
+  queryClient: QueryClient,
+  propertyIds: string[]
+) {
+  markAllSavedPropertiesViewed(propertyIds);
+  setSavedPropertyCountQuery(queryClient, 0);
+}
+
+/** @deprecated Use fetchUnviewedSavedCount */
+export const fetchSavedPropertyCount = fetchUnviewedSavedCount;

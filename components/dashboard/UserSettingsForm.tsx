@@ -20,7 +20,7 @@ import { AccountNameConfirmation } from "@/components/dashboard/account-name-con
 import { TwoFactorSetupDialog } from "@/components/dashboard/two-factor-setup-dialog";
 import { TwoFactorSetupPanel } from "@/components/dashboard/two-factor-setup-panel";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
-import { toast } from "sonner";
+import { ProfileImage } from "@/components/shared/profile-image";
 
 type BankAccount = {
   id: string;
@@ -587,14 +587,9 @@ export default function UserSettingsForm({
                 ) : null}
               </div>
 
-              {previewUrl ? (
-                <div className="flex items-center gap-4 rounded-lg border p-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={previewUrl}
-                    alt="Profile preview"
-                    className="h-16 w-16 rounded-full object-cover"
-                  />
+              {previewUrl || imageUrl ? (
+                <div className="flex items-center gap-4 rounded-none border p-3">
+                  <ProfileImage image={previewUrl || imageUrl} name={fullName} email={email} size="lg" />
                   <span className="text-sm text-muted-foreground">
                     Preview of your profile image.
                   </span>
@@ -856,7 +851,7 @@ export default function UserSettingsForm({
             <div className="space-y-3">
               {bankAccounts.length ? (
                 bankAccounts.map((account) => (
-                  <div key={account.id} className="rounded-xl border bg-background p-4">
+                  <div key={account.id} className="rounded-none border bg-background p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{account.accountType}</p>

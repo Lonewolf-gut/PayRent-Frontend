@@ -22,6 +22,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { WithdrawalFlowDialog } from "@/components/dashboard/withdrawal-flow-dialog";
 import { toast } from "sonner";
 import type { UserRole } from "@prisma/client";
 
@@ -77,8 +78,8 @@ export function WalletPanel({
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [withdrawalId, setWithdrawalId] = useState<string | null>(null);
-  const [otpCode, setOtpCode] = useState("");
-  const [twoFaToken, setTwoFaToken] = useState("");
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [withdrawStep, setWithdrawStep] = useState<"otp" | "twofa" | "confirm">("otp");
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -200,27 +201,27 @@ export function WalletPanel({
     },
     onSuccess: (data) => {
       setWithdrawalId(data.id);
+      setWithdrawStep("otp");
+      setWithdrawDialogOpen(true);
       toast.success("OTP sent. Check your email or phone.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const verifyOtpMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (code: string) => {
       const res = await fetch("/api/withdrawals/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ withdrawalId, code: otpCode }),
+        body: JSON.stringify({ withdrawalId, code }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "OTP verification failed");
     },
-    onSuccess: () => toast.success("OTP verified. Enter your 2FA code to confirm."),
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const confirmWithdrawMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (twoFaToken: string) => {
       const res = await fetch("/api/withdrawals/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,12 +241,16 @@ export function WalletPanel({
       }
       setWithdrawAmount("");
       setWithdrawalId(null);
-      setOtpCode("");
-      setTwoFaToken("");
+      setWithdrawDialogOpen(false);
+      setWithdrawStep("otp");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const selectedPayoutAccount = verifiedAccounts.find((a) => a.id === bankAccountId);
+  const payoutLabel = selectedPayoutAccount
+    ? `${selectedPayoutAccount.accountType === "MOMO" ? "MoMo" : "Bank"} · ${selectedPayoutAccount.bankName}`
+    : "your account";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -302,12 +307,6 @@ export function WalletPanel({
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-0 pb-6 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Your wallet balance reflects completed deposits and withdrawals only. Add a verified
-              Mobile Money account in Settings, then deposit via MoMo. Subscriptions are paid
-              separately through MoMo and cannot use wallet balance.
-            </p>
-
             {!verifiedAccounts.length && settingsHref ? (
               <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-100">
                 You do not have a saved payment method yet. Add a verified bank or MoMo account in
@@ -318,13 +317,6 @@ export function WalletPanel({
                   </Button>
                 </div>
               </div>
-            ) : null}
-
-            {verifiedAccounts.length ? (
-              <p className="text-sm text-muted-foreground">
-                MoMo deposits use a phone prompt. Bank deposits use the platform collection account
-                and a unique reference. You will be notified when the transfer is confirmed.
-              </p>
             ) : null}
 
             {bankDepositInstructions ? (
@@ -373,10 +365,10 @@ export function WalletPanel({
                   onValueChange={(value) => setDepositAccountId(value ?? "")}
                   disabled={!verifiedAccounts.length}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full rounded-none border-0 bg-background shadow-none">
                     <SelectValue placeholder="Select verified account" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-none border-border">
                     {verifiedAccounts.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.accountType === "MOMO" ? "MoMo" : "Bank"} ·{" "}
@@ -440,7 +432,6 @@ export function WalletPanel({
                     type="number"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
-                    disabled={!!withdrawalId}
                   />
                 </div>
                 <div>
@@ -448,12 +439,12 @@ export function WalletPanel({
                   <Select
                     value={bankAccountId}
                     onValueChange={(value) => setBankAccountId(value ?? "")}
-                    disabled={!!withdrawalId || !verifiedAccounts.length}
+                    disabled={!verifiedAccounts.length}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full rounded-none border-0 bg-background shadow-none">
                       <SelectValue placeholder="Select verified account" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-none border-border">
                       {verifiedAccounts.map((account) => (
                         <SelectItem key={account.id} value={account.id}>
                           {account.accountType === "MOMO" ? "MoMo" : "Bank"} ·{" "}
@@ -466,53 +457,30 @@ export function WalletPanel({
                 </div>
               </div>
 
-              {!withdrawalId ? (
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  disabled={
-                    !withdrawAmount ||
-                    !bankAccountId ||
-                    withdrawRequestMutation.isPending
-                  }
-                  onClick={() => withdrawRequestMutation.mutate()}
-                >
-                  Request withdrawal
-                </Button>
-              ) : (
-                <div className="space-y-4 rounded-lg border p-4">
-                  <div>
-                    <Label>OTP code</Label>
-                    <Input
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="Enter OTP from email/SMS"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    disabled={!otpCode || verifyOtpMutation.isPending}
-                    onClick={() => verifyOtpMutation.mutate()}
-                  >
-                    Verify OTP
-                  </Button>
-                  <div>
-                    <Label>2FA token</Label>
-                    <Input
-                      value={twoFaToken}
-                      onChange={(e) => setTwoFaToken(e.target.value)}
-                      maxLength={6}
-                      placeholder="6-digit authenticator code"
-                    />
-                  </div>
-                  <Button
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    disabled={!twoFaToken || confirmWithdrawMutation.isPending}
-                    onClick={() => confirmWithdrawMutation.mutate()}
-                  >
-                    Confirm withdrawal
-                  </Button>
-                </div>
-              )}
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={
+                  !withdrawAmount ||
+                  !bankAccountId ||
+                  withdrawRequestMutation.isPending
+                }
+                onClick={() => withdrawRequestMutation.mutate()}
+              >
+                Withdraw
+              </Button>
+
+              <WithdrawalFlowDialog
+                open={withdrawDialogOpen}
+                onOpenChange={setWithdrawDialogOpen}
+                amount={parseFloat(withdrawAmount) || 0}
+                payoutLabel={payoutLabel}
+                step={withdrawStep}
+                onStepChange={setWithdrawStep}
+                onVerifyOtp={(code) => verifyOtpMutation.mutateAsync(code)}
+                onConfirm={(token) => confirmWithdrawMutation.mutateAsync(token)}
+                verifyingOtp={verifyOtpMutation.isPending}
+                confirming={confirmWithdrawMutation.isPending}
+              />
             </AccordionContent>
           </AccordionItem>
         ) : null}
@@ -547,11 +515,11 @@ export function WalletPanel({
                     status: string;
                     reference: string;
                   }) => (
-                    <li key={tx.id} className="flex justify-between gap-4 py-3 text-sm">
+                    <li key={tx.id} className="flex justify-between gap-4 py-3 text-sm text-foreground">
                       <span className="text-muted-foreground">
                         {tx.type} · {tx.reference}
                       </span>
-                      <span className="shrink-0 font-medium">
+                      <span className="shrink-0 font-medium text-foreground">
                         GHS {Number(tx.amount).toLocaleString()} · {tx.status}
                       </span>
                     </li>

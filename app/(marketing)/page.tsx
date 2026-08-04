@@ -22,6 +22,7 @@ import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
 import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
 import { StatsBar } from "@/components/marketing/stats-bar";
+import { showMerchantAgentPricing } from "@/lib/subscription/pricing-visibility";
 
 const whoItsFor = [
   {
@@ -108,6 +109,7 @@ export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const selectedRole = ROLE_HOW_IT_WORKS[activeRole];
   const isSignedIn = !!session?.user;
+  const showPricingSection = showMerchantAgentPricing(session?.user?.role);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -286,7 +288,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <LandlordAgentPricingCta />
+      {showPricingSection ? <LandlordAgentPricingCta /> : null}
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">

@@ -159,6 +159,12 @@ export function WalletPanel({
       queryClient.invalidateQueries({ queryKey: ["bank-deposit-pending"] });
       if (data.bankInstructions) {
         setBankDepositInstructions(data.bankInstructions);
+        if (data.bankInstructions.demoCompleted) {
+          setBankDepositInstructions(null);
+          setDepositAmount("");
+          toast.success("Bank deposit credited to your wallet (demo mode).");
+          return;
+        }
         toast.success("Transfer the exact amount using the reference below.");
         return;
       }
@@ -168,7 +174,9 @@ export function WalletPanel({
       } else {
         toast.success(
           data.message ??
-            "MoMo payment initiated — approve the prompt on your phone. You will receive a notification when the deposit completes."
+            (data.payment?.status === "SUCCESSFUL"
+              ? "Deposit completed successfully."
+              : "MoMo payment initiated — approve the prompt on your phone. You will receive a notification when the deposit completes.")
         );
       }
       setDepositAmount("");
@@ -264,6 +272,18 @@ export function WalletPanel({
           <p className="text-3xl font-bold text-emerald-600">
             GHS {Number(data?.balance ?? 0).toLocaleString()}
           </p>
+          {typeof data?.withdrawableBalance === "number" ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Withdrawable: GHS {Number(data.withdrawableBalance).toLocaleString()}
+              {Number(data?.financedBalance ?? 0) > 0 ? (
+                <span>
+                  {" "}
+                  · Financed funds (non-withdrawable): GHS{" "}
+                  {Number(data.financedBalance).toLocaleString()}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 

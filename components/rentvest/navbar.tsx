@@ -31,6 +31,7 @@ import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
+import { showMerchantAgentPricing } from "@/lib/subscription/pricing-visibility";
 import { cn } from "@/lib/utils";
 import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import type { UserRole } from "@prisma/client";
@@ -98,9 +99,11 @@ export function Navbar() {
   );
   const showUpgradeInMenu =
     !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);
-  const marketingLinks = MARKETING_LINKS.filter(
-    (link) => !(link.href === "/pricing" && pathname === "/pricing")
-  );
+  const marketingLinks = MARKETING_LINKS.filter((link) => {
+    if (link.href === "/pricing" && pathname === "/pricing") return false;
+    if (link.href === "/pricing" && !showMerchantAgentPricing(role)) return false;
+    return true;
+  });
 
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">

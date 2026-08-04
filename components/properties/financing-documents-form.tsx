@@ -90,6 +90,14 @@ export function FinancingDocumentsForm() {
 
       {data?.allApproved ? (
         <Badge className="bg-emerald-600">All financing documents approved</Badge>
+      ) : data?.documents?.some((doc) => doc.status === "PENDING") ? (
+        <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+          <p className="font-medium">Documents pending review</p>
+          <p className="mt-1 text-sky-800/80">
+            Your payslip and bank statements are with admin. Status stays pending until review
+            completes and a lender can finance your request.
+          </p>
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">
           Upload your current payslip and bank statements covering the last 6–12 months. An admin

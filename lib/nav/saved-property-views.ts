@@ -48,11 +48,11 @@ export function extractSavedPropertyIds(
     .filter((id): id is string => Boolean(id));
 }
 
-export async function fetchUnviewedSavedCount() {
+export async function fetchSavedPropertyCount() {
   const res = await fetch("/api/properties/saved");
   const json = await res.json();
   if (!json.success) return 0;
-  return countUnviewedSavedProperties(extractSavedPropertyIds(json.data ?? []));
+  return extractSavedPropertyIds(json.data ?? []).length;
 }
 
 export function setSavedPropertyCountQuery(queryClient: QueryClient, count: number) {
@@ -60,7 +60,7 @@ export function setSavedPropertyCountQuery(queryClient: QueryClient, count: numb
 }
 
 export async function refreshSavedPropertyCountQuery(queryClient: QueryClient) {
-  const count = await fetchUnviewedSavedCount();
+  const count = await fetchSavedPropertyCount();
   setSavedPropertyCountQuery(queryClient, count);
   return count;
 }
@@ -77,3 +77,6 @@ export function markSavedPropertyViewedAndSyncCount(
   setSavedPropertyCountQuery(queryClient, nextCount);
   return nextCount;
 }
+
+/** @deprecated Use fetchSavedPropertyCount — navbar shows total saved listings. */
+export const fetchUnviewedSavedCount = fetchSavedPropertyCount;

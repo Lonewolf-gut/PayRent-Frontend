@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseSidebarBadgeCount } from "@/lib/nav/sidebar-badge-count";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { getStaffPortalHomePath } from "@/lib/auth/route-guards";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,7 @@ export interface NavItem {
   label: string;
   icon: keyof typeof ICONS;
   badgeCountEndpoint?: string;
+  badgeCountStatuses?: string[];
 }
 
 function useSidebarBadges(items: NavItem[]) {
@@ -64,10 +66,10 @@ function useSidebarBadges(items: NavItem[]) {
         queryFn: async () => {
           const res = await fetch(item.badgeCountEndpoint as string);
           const json = await res.json();
-          return Number(json.data?.total ?? json.data?.length ?? json.data ?? 0);
+          return parseSidebarBadgeCount(json, item.badgeCountStatuses);
         },
-        staleTime: 1000 * 60 * 5,
-        refetchInterval: 1000 * 60 * 5,
+        staleTime: 30_000,
+        refetchInterval: 60_000,
       })),
   });
 

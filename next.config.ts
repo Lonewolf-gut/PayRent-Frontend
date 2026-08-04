@@ -39,9 +39,7 @@ const nextConfig: NextConfig = {
         source: `/api/auth/${path}`,
         destination: `${apiOrigin}/api/auth/${path}`,
       })),
-      // Use fallback so local NextAuth routes (session, csrf, callback, etc.)
-      // are matched before proxying unmatched /api/* to the backend.
-      fallback: [
+      afterFiles: [
         {
           source: "/api/:path*",
           destination: `${apiOrigin}/api/:path*`,

@@ -13,10 +13,9 @@ export default async function VerifyEmailLayout({
   if (!session?.user) redirect("/login");
 
   const role = session.user.role as UserRole;
+  const { emailVerified, phoneVerified } = await getUserVerificationState(session);
 
-  if (session.user.emailVerified || role === "ADMIN") {
-    const { phoneVerified } = await getUserVerificationState(session);
-
+  if (emailVerified || role === "ADMIN") {
     redirect(
       getPostAuthRoute({
         role,

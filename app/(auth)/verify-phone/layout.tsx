@@ -13,18 +13,17 @@ export default async function VerifyPhoneLayout({
   if (!session?.user) redirect("/login");
 
   const role = session.user.role as UserRole;
+  const { emailVerified, phoneVerified } = await getUserVerificationState(session);
 
-  if (!session.user.emailVerified && role !== "ADMIN") {
+  if (!emailVerified && role !== "ADMIN") {
     redirect("/verify-email");
   }
-
-  const { phoneVerified } = await getUserVerificationState(session);
 
   if (phoneVerified || role === "ADMIN" || role === "COMPLIANCE_OFFICER") {
     redirect(
       getPostAuthRoute({
         role,
-        emailVerified: Boolean(session.user.emailVerified),
+        emailVerified: true,
         phoneVerified: true,
       })
     );

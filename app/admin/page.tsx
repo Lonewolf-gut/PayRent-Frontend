@@ -1,14 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { ChartCard } from "@/components/dashboard/chart-card";
 import { Users, Building2, CreditCard, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+const ChartCard = dynamic(
+  () => import("@/components/dashboard/chart-card").then((mod) => mod.ChartCard),
+  {
+    ssr: false,
+    loading: () => (
+      <Card className="rounded-none">
+        <CardContent className="py-10 text-sm text-muted-foreground">
+          Loading revenue chart…
+        </CardContent>
+      </Card>
+    ),
+  }
+);
 
 type RevenuePeriod = 3 | 6 | 12;
 

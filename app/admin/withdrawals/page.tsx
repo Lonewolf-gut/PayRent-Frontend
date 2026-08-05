@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { AuditLogPanel } from "@/components/admin/audit-log-panel";
 
 export default function AdminWithdrawalsPage() {
   const queryClient = useQueryClient();
@@ -102,6 +103,8 @@ export default function AdminWithdrawalsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AuditLogPanel title="Withdrawal audit log" actionFilter="WITHDRAW" limit={15} />
     </div>
   );
 }

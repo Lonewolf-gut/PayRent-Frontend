@@ -36,7 +36,11 @@ const navItems = [
 
   { href: "/admin/withdrawals", label: "Withdrawals", icon: "Wallet" as const },
 
+  { href: "/admin/deposits", label: "Deposits", icon: "Wallet" as const },
+
   { href: "/admin/transactions", label: "Transactions", icon: "DollarSign" as const },
+
+  { href: "/admin/audit-logs", label: "Audit logs", icon: "FileText" as const },
 
   { href: "/admin/fraud", label: "Fraud & Security", icon: "Shield" as const },
 

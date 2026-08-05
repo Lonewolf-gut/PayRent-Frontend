@@ -312,38 +312,6 @@ export default function AdminUsersPage() {
               <p><strong>Last sign-in:</strong> {formatDateTime(detail.lastLoginAt)}</p>
               <p><strong>Joined:</strong> {formatDateTime(detail.createdAt)}</p>
               <p><strong>2FA:</strong> {detail.twoFactorEnabled ? "Enabled" : "Off"}</p>
-              <p><strong>Failed logins:</strong> {detail.failedLoginCount}</p>
-              {detail.loginLogs?.length ? (
-                <div>
-                  <p className="font-medium">Sign-in history</p>
-                  <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto text-muted-foreground">
-                    {detail.loginLogs.map((log: {
-                      id: string;
-                      success: boolean;
-                      ipAddress?: string | null;
-                      createdAt: string;
-                    }) => (
-                      <li key={log.id} className="flex flex-wrap justify-between gap-2 border-b border-border py-1">
-                        <span>
-                          {log.success ? "Success" : "Failed"}
-                          {log.ipAddress ? ` · ${log.ipAddress}` : ""}
-                        </span>
-                        <span>{formatDateTime(log.createdAt)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {detail.wallets?.length ? (
-                <div>
-                  <p className="font-medium">Wallets</p>
-                  <ul className="mt-1 space-y-1 text-muted-foreground">
-                    {detail.wallets.map((w: any) => (
-                      <li key={w.id}>{w.type}: GHS {Number(w.balance).toLocaleString()}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
               {detail.verifications?.length ? (
                 <div>
                   <p className="font-medium">Recent verifications</p>

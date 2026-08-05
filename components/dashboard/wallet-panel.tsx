@@ -25,6 +25,12 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 import { WithdrawalFlowDialog } from "@/components/dashboard/withdrawal-flow-dialog";
 import { toast } from "sonner";
 import type { UserRole } from "@prisma/client";
+import {
+  downloadTransactionCsv,
+  downloadTransactionPdf,
+  transactionExportFilename,
+  transactionsToCsv,
+} from "@/lib/utils/transaction-export";
 
 type BankAccount = {
   id: string;
@@ -80,6 +86,7 @@ export function WalletPanel({
   const [withdrawalId, setWithdrawalId] = useState<string | null>(null);
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawStep, setWithdrawStep] = useState<"otp" | "twofa" | "confirm">("otp");
+  const [exportingTransactions, setExportingTransactions] = useState(false);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -506,7 +513,82 @@ export function WalletPanel({
             ) : !data?.transactions?.length ? (
               <p className="text-sm text-muted-foreground">No transactions yet.</p>
             ) : (
-              <ul className="divide-y">
+              <>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-none"
+                    disabled={exportingTransactions}
+                    onClick={async () => {
+                      setExportingTransactions(true);
+                      try {
+                        const rows = data.transactions.map(
+                          (tx: {
+                            reference: string;
+                            type: string;
+                            amount: number;
+                            status: string;
+                            createdAt: string;
+                          }) => ({
+                            reference: tx.reference,
+                            type: tx.type,
+                            amount: tx.amount,
+                            status: tx.status,
+                            createdAt: tx.createdAt,
+                            wallet: { user: { email: session?.user?.email } },
+                          })
+                        );
+                        downloadTransactionCsv(
+                          transactionsToCsv(rows),
+                          transactionExportFilename("wallet-transactions", "csv")
+                        );
+                      } finally {
+                        setExportingTransactions(false);
+                      }
+                    }}
+                  >
+                    Download CSV
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-none"
+                    disabled={exportingTransactions}
+                    onClick={async () => {
+                      setExportingTransactions(true);
+                      try {
+                        const rows = data.transactions.map(
+                          (tx: {
+                            reference: string;
+                            type: string;
+                            amount: number;
+                            status: string;
+                            createdAt: string;
+                          }) => ({
+                            reference: tx.reference,
+                            type: tx.type,
+                            amount: tx.amount,
+                            status: tx.status,
+                            createdAt: tx.createdAt,
+                            wallet: { user: { email: session?.user?.email } },
+                          })
+                        );
+                        await downloadTransactionPdf(
+                          rows,
+                          transactionExportFilename("wallet-transactions", "pdf")
+                        );
+                      } finally {
+                        setExportingTransactions(false);
+                      }
+                    }}
+                  >
+                    Download PDF
+                  </Button>
+                </div>
+                <ul className="divide-y">
                 {data.transactions.map(
                   (tx: {
                     id: string;
@@ -526,6 +608,7 @@ export function WalletPanel({
                   )
                 )}
               </ul>
+              </>
             )}
           </AccordionContent>
         </AccordionItem>

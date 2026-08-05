@@ -215,7 +215,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
-            className="h-11"
+            className="h-11 bg-white text-slate-900 placeholder:text-slate-400"
             {...register("email")}
           />
           {errors.email ? (
@@ -231,7 +231,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
               id="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
-              className="h-11 pr-10"
+              className="h-11 pr-10 bg-white text-slate-900 placeholder:text-slate-400"
               {...register("password")}
             />
             <button
@@ -257,7 +257,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              className="h-11"
+              className="h-11 bg-white text-slate-900 placeholder:text-slate-400"
               value={twoFaCode}
               onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="000000"

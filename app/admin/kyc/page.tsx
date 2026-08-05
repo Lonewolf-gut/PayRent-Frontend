@@ -337,7 +337,7 @@ export default function AdminKycPage() {
   });
 
   const groupedReviews = useMemo(
-    () => groupReviewsByUser(reviews ?? []),
+    () => groupReviewsByUser((reviews ?? []).filter((review) => review.type !== "BANK")),
     [reviews]
   );
 

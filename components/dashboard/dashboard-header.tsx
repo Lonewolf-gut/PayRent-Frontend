@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, Menu, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileImage } from "@/components/shared/profile-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,18 +36,6 @@ import { getRoleSignOutPath, getStaffPortalHomePath } from "@/lib/auth/route-gua
 import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import { useDashboardTheme } from "@/components/dashboard/dashboard-theme-provider";
 import { cn } from "@/lib/utils";
-
-function getInitials(name?: string | null, email?: string | null) {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  }
-  if (!email) return "U";
-  return email.slice(0, 2).toUpperCase();
-}
 
 type DashboardHeaderProps = {
   navItems?: NavItem[];
@@ -147,16 +135,13 @@ export function DashboardHeader({
               className="flex min-w-0 items-center gap-2.5 rounded-full border border-border/60 bg-muted/30 py-1 pl-1 pr-3 outline-none ring-emerald-600 focus-visible:ring-2"
               aria-label="Open account menu"
             >
-                <Avatar size="lg" className="size-11">
-                  {avatarImage ? (
-                    <AvatarImage
-                      key={avatarImage}
-                      src={avatarImage}
-                      alt="Profile photo"
-                    />
-                  ) : null}
-                  <AvatarFallback className="text-sm">{getInitials(fullName, email)}</AvatarFallback>
-                </Avatar>
+                <ProfileImage
+                  image={avatarImage}
+                  name={fullName}
+                  email={email}
+                  size="md"
+                  className="size-11"
+                />
                 <span className="hidden sm:inline">
                   <AccountVerificationBadge />
                 </span>

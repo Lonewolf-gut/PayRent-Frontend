@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, Menu, Sparkles } from "lucide-react";
 import { RentVestLogo } from "./logo";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileImage } from "@/components/shared/profile-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,18 +42,6 @@ const MARKETING_LINKS = [
   { href: "/pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ] as const;
-
-function getInitials(name?: string | null, email?: string | null) {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  }
-  if (!email) return "U";
-  return email.slice(0, 2).toUpperCase();
-}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -170,18 +158,13 @@ export function Navbar() {
                 onMouseEnter={openMenu}
                 onMouseLeave={scheduleCloseMenu}
               >
-                <Avatar size="default" className="relative size-10 cursor-pointer">
-                  {avatarImage ? (
-                    <AvatarImage
-                      key={avatarImage}
-                      src={avatarImage}
-                      alt="Profile photo"
-                    />
-                  ) : null}
-                  <AvatarFallback className="bg-emerald-100 text-emerald-800">
-                    {getInitials(fullName, email)}
-                  </AvatarFallback>
-                </Avatar>
+                <ProfileImage
+                  image={avatarImage}
+                  name={fullName}
+                  email={email}
+                  size="md"
+                  className="cursor-pointer"
+                />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"

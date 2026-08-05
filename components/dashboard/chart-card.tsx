@@ -41,8 +41,13 @@ export function ChartCard({
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="month" className="text-xs" />
-            <YAxis className="text-xs" />
-            <Tooltip />
+            <YAxis className="text-xs" tickFormatter={(value) => Number(value).toLocaleString()} />
+            <Tooltip
+              formatter={(value) => [
+                `GHS ${Number(value).toLocaleString()}`,
+                "Revenue",
+              ]}
+            />
             <Area
               type="monotone"
               dataKey={dataKey}

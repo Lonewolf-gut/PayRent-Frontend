@@ -154,17 +154,10 @@ export function PropertyActionPanel({
                 GHS {walletBalance.toLocaleString()}
               </span>
             </p>
-            {!isSale && !approvedApplication ? (
-              <p className="text-xs text-muted-foreground">
-                Submit an application first so the merchant can review your request.
-              </p>
-            ) : null}
             <Button
               className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
               disabled={
-                isSale
-                  ? purchaseMutation.isPending
-                  : rentPaymentMutation.isPending || !approvedApplication
+                isSale ? purchaseMutation.isPending : rentPaymentMutation.isPending
               }
               onClick={() =>
                 isSale ? purchaseMutation.mutate() : rentPaymentMutation.mutate()
@@ -202,10 +195,10 @@ export function PropertyActionPanel({
             </CardHeader>
             <CardContent className="space-y-4">
               {!fullyVerified ? (
-                <div className="space-y-3 border border-amber-200 bg-amber-50 p-4 text-sm">
+                <div className="space-y-3 border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
                   <div className="flex items-start gap-2">
-                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-                    <p className="text-amber-900">
+                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <p className="text-foreground">
                       Your account must be fully verified before you can request financing.
                       Complete phone, profile, identity, and bank verification on your dashboard.
                     </p>
@@ -229,8 +222,8 @@ export function PropertyActionPanel({
                 <div className="space-y-3">
                   <StatusBadge status="PENDING" label="Documents under review" />
                   <p className="text-sm text-muted-foreground">
-                    Your payslip and bank statements are pending admin review. You will be notified
-                    when a lender can finance your request.
+                    Your documents have been sent for review. We will notify you when you can
+                    continue with a financing request.
                   </p>
                   <Button className="w-full rounded-none" variant="outline" asChild>
                     <Link href="/dashboard/buyer/financing-documents">View document status</Link>
@@ -239,8 +232,8 @@ export function PropertyActionPanel({
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Cannot pay upfront? Submit your payslip and bank statements on your dashboard.
-                    Your request stays pending until a lender approves financing.
+                    Need help paying upfront? Upload your financing documents on your dashboard to
+                    request Pay for Rent for this listing.
                   </p>
                   <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
                     <Link href="/dashboard/buyer/financing-documents">

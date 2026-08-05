@@ -15,9 +15,8 @@ export default function TenantFinancingDocumentsPage() {
       <div>
         <h1 className="text-2xl font-bold">Financing documents</h1>
         <p className="text-muted-foreground">
-          Upload your payslip and bank statements here after your account is verified. These
-          documents are reviewed by admin before you can apply for Pay for Rent financing on a
-          property.
+          Upload documents required for Pay for Rent financing after your account is verified.
+          Submitted files are sent for review before you can request financing on a property.
         </p>
       </div>
       <FinancingDocumentsForm />

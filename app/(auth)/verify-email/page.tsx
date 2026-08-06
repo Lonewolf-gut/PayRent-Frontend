@@ -20,11 +20,14 @@ import {
 import type { UserRole } from "@prisma/client";
 
 type VerificationDelivery = {
-  deliveryMode?: "smtp" | "ethereal" | "log" | null;
+  sent?: boolean;
+  deliveryMode?: "smtp" | "ethereal" | "log" | "resend" | null;
   previewUrl?: string | null;
   devCode?: string | null;
   realEmailExpected?: boolean;
   hasPendingCode?: boolean;
+  emailError?: string | null;
+  deliveryHint?: string | null;
 };
 
 export default function VerifyEmailPage() {
@@ -38,6 +41,8 @@ export default function VerifyEmailPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [realEmailExpected, setRealEmailExpected] = useState(false);
+  const [deliveryHint, setDeliveryHint] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const email = session?.user?.email ?? "";
 
@@ -47,6 +52,8 @@ export default function VerifyEmailPage() {
     setPreviewUrl(data.previewUrl ?? null);
     setDevCode(data.devCode ?? null);
     setRealEmailExpected(Boolean(data.realEmailExpected));
+    setDeliveryHint(data.deliveryHint ?? null);
+    setEmailError(data.emailError ?? null);
 
     if (data.devCode) {
       setCode(data.devCode);
@@ -172,7 +179,11 @@ export default function VerifyEmailPage() {
       applyDelivery(data);
 
       if (data.devCode) {
-        toast.success("Your verification code is shown below.");
+        toast.success(
+          data.sent
+            ? "A new verification code was sent to your email inbox."
+            : "Your verification code is shown below."
+        );
         return;
       }
 
@@ -181,12 +192,17 @@ export default function VerifyEmailPage() {
         return;
       }
 
-      if (data.realEmailExpected) {
+      if (data.sent && data.realEmailExpected) {
         toast.success("A new verification code was sent to your email inbox.");
         return;
       }
 
-      toast.success("Verification code updated.");
+      if (data.emailError) {
+        toast.error(data.emailError);
+        return;
+      }
+
+      toast.success(data.deliveryHint ?? "Verification code updated.");
     } catch {
       toast.error("Could not resend code");
     } finally {
@@ -209,17 +225,18 @@ export default function VerifyEmailPage() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-slate-900">Verify your email</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {realEmailExpected ? (
-              <>
-                Enter the 6-digit code sent to{" "}
-                <span className="font-medium text-foreground">{email || "your email"}</span>.
-              </>
-            ) : (
-              <>
-                Local development mode — use the code below for{" "}
-                <span className="font-medium text-foreground">{email || "your email"}</span>.
-              </>
-            )}
+            {deliveryHint ??
+              (realEmailExpected ? (
+                <>
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-medium text-foreground">{email || "your email"}</span>.
+                </>
+              ) : (
+                <>
+                  Use the verification code below for{" "}
+                  <span className="font-medium text-foreground">{email || "your email"}</span>.
+                </>
+              ))}
           </p>
         </div>
 
@@ -227,7 +244,13 @@ export default function VerifyEmailPage() {
           <p className="mt-6 text-center text-sm text-muted-foreground">Loading your code…</p>
         ) : null}
 
-        {!realEmailExpected && devCode ? (
+        {emailError ? (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+            {emailError}
+          </div>
+        ) : null}
+
+        {devCode ? (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
               Your verification code
@@ -236,8 +259,9 @@ export default function VerifyEmailPage() {
               {devCode}
             </p>
             <p className="mt-2 text-xs text-amber-900/80">
-              In local development, codes are shown here. They are not sent to your real inbox
-              unless SMTP is fully configured with a verified sending domain.
+              {realEmailExpected
+                ? "We could not confirm delivery to your inbox. Use this code to verify, or fix your email settings and resend."
+                : "Email is not configured on the server, so the code is shown here instead of being emailed."}
             </p>
           </div>
         ) : null}

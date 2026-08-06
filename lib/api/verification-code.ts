@@ -65,20 +65,22 @@ export async function fetchBackendPendingCode(
 }
 
 export async function readPendingVerificationCode(
-  userId: string,
+  userId: string | null,
   purpose: string,
   cookie: string | null
 ) {
   if (!isDevOtpEnabled()) return null;
 
-  const fromDb = await readPendingPhoneCodeFromDb(userId, purpose);
-  if (fromDb) return fromDb;
+  const fromBackend = await fetchBackendPendingCode(cookie, purpose);
+  if (fromBackend) return fromBackend;
 
-  return fetchBackendPendingCode(cookie, purpose);
+  if (!userId) return null;
+
+  return readPendingPhoneCodeFromDb(userId, purpose);
 }
 
 export async function enrichWithDevCode(
-  userId: string,
+  userId: string | null,
   data: Record<string, unknown>,
   cookie: string | null,
   purpose = "PHONE_VERIFY"
@@ -86,7 +88,9 @@ export async function enrichWithDevCode(
   if (!isDevOtpEnabled()) return data;
 
   const existing = (data.devCode ?? data.code) as string | null | undefined;
-  if (existing && existing.length >= 4) return data;
+  if (existing && existing.length >= 4) {
+    return { ...data, devCode: existing, code: existing, isDevelopment: true };
+  }
 
   const code = await readPendingVerificationCode(userId, purpose, cookie);
   if (!code) return data;

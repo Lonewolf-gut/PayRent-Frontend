@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { enrichWithDevCode } from "@/lib/api/verification-code";
+import {
+  enrichWithDevCode,
+  isDevOtpEnabled,
+} from "@/lib/api/verification-code";
 
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
@@ -21,12 +24,16 @@ export async function proxyPhoneVerification(req: NextRequest, method: "GET" | "
   const backendRes = await fetch(url, init);
   const json = await backendRes.json();
 
-  const session = await auth();
-  const userId = session?.user?.id;
-
-  if (!json.success || !json.data || !userId) {
+  if (!json.success || !json.data) {
     return NextResponse.json(json, { status: backendRes.status });
   }
+
+  if (!isDevOtpEnabled()) {
+    return NextResponse.json(json, { status: backendRes.status });
+  }
+
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
 
   const enriched = await enrichWithDevCode(
     userId,

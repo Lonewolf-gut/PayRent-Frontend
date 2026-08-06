@@ -65,8 +65,8 @@ export default function VerifyPhonePage() {
     async (
       data: PhoneVerificationDelivery | null | undefined,
       options?: { forceToast?: boolean }
-    ) => {
-      if (!data) return;
+    ): Promise<string | null> => {
+      if (!data) return null;
       if (data.phone) setPhone(data.phone);
       if (data.smsConfigured !== undefined) {
         setSmsConfigured(Boolean(data.smsConfigured));
@@ -77,7 +77,11 @@ export default function VerifyPhonePage() {
         otpCode = await fetchDevVerificationCode("PHONE_VERIFY");
       }
 
-      applyOtpCode(otpCode, data, options);
+      if (otpCode) {
+        applyOtpCode(otpCode, data, options);
+      }
+
+      return otpCode;
     },
     [applyOtpCode]
   );
@@ -103,10 +107,10 @@ export default function VerifyPhonePage() {
         return;
       }
 
-      await applyDelivery(json.data as PhoneVerificationDelivery, { forceToast: true });
-
       const data = json.data as PhoneVerificationDelivery;
-      if (!data.devCode && !data.code) {
+      const otpCode = await applyDelivery(data, { forceToast: true });
+
+      if (!otpCode) {
         toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
       }
     } catch {

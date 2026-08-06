@@ -4,20 +4,13 @@ type DevVerificationCodeBoxProps = {
   smsConfigured?: boolean;
 };
 
-function isDevTestingEnabled() {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.NEXT_PUBLIC_SHOW_DEV_OTP === "true"
-  );
-}
-
 /** Local testing only — remove when SMS/email delivery is fully configured. */
 export function DevVerificationCodeBox({
   code,
   channel,
   smsConfigured = true,
 }: DevVerificationCodeBoxProps) {
-  if (!isDevTestingEnabled() || !code) return null;
+  if (!code) return null;
 
   const hint =
     channel === "phone"

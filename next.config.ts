@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
       "login-attempt",
       "refresh",
       "register",
+      "resend-phone-verification",
       "resend-verification",
       "reset-password",
     ];

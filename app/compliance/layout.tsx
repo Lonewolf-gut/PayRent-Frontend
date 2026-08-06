@@ -10,7 +10,6 @@ const navItems = [
   { href: "/compliance/transactions", label: "Transactions", icon: "DollarSign" as const },
   { href: "/compliance/kyc", label: "KYC review", icon: "FileText" as const },
   { href: "/compliance/kyc-history", label: "KYC history", icon: "FileText" as const },
-  { href: "/compliance/financing-documents", label: "Financing docs", icon: "FileText" as const, badgeCountEndpoint: "/api/admin/financing-documents?status=PENDING" },
   { href: "/compliance/monitoring", label: "Suspicious activity", icon: "Shield" as const },
   { href: "/compliance/reports", label: "Reports", icon: "BarChart3" as const },
   { href: "/compliance/settings", label: "Settings", icon: "Settings" as const },

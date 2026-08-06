@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { RentVestLogo } from "@/components/rentvest/logo";
@@ -16,9 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { signIn, getSession } from "next-auth/react";
 import { readApiJson, stripSensitiveQueryParams } from "@/lib/utils/api-message";
-import {
-  getRegisterErrorMessage,
-} from "@/lib/utils/auth-toast-messages";
+import { getRegisterErrorMessage } from "@/lib/utils/auth-toast-messages";
 import { toast } from "sonner";
 import { ROLE_LABELS } from "@/constants/platform";
 
@@ -40,18 +38,25 @@ const roleLabels: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> =
   LENDER: "investor",
 };
 
-export default function RegisterCreatePage() {
+function firstFormError(errors: FieldErrors<RegisterInput>) {
+  for (const value of Object.values(errors)) {
+    if (value && typeof value === "object" && "message" in value && value.message) {
+      return String(value.message);
+    }
+  }
+  return "Please check the highlighted fields and try again.";
+}
+
+function RegisterCreateForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole = (searchParams.get("role") ?? "BUYER") as
-    | "BUYER"
-    | "MERCHANT"
-    | "MARKETER"
-    | "LENDER";
-  const role = ["BUYER", "MERCHANT", "MARKETER", "LENDER"].includes(initialRole) ? initialRole : "BUYER";
-  const initialEntity = searchParams.get("entityType");
+  const roleParam = searchParams.get("role");
+  const entityParam = searchParams.get("entityType");
+  const role = (["BUYER", "MERCHANT", "MARKETER", "LENDER"].includes(roleParam ?? "")
+    ? roleParam
+    : "BUYER") as "BUYER" | "MERCHANT" | "MARKETER" | "LENDER";
   const entityType: "INDIVIDUAL" | "COMPANY" =
-    initialEntity === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
+    entityParam === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
   const [loading, setLoading] = useState(false);
   const showEntityType = role === "BUYER" || role === "MERCHANT";
   const requiresDateOfBirth = entityType !== "COMPANY";
@@ -64,7 +69,10 @@ export default function RegisterCreatePage() {
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { role },
+    defaultValues: {
+      role,
+      entityType,
+    },
   });
 
   const passwordValue = watch("password") ?? "";
@@ -74,10 +82,18 @@ export default function RegisterCreatePage() {
   }, []);
 
   useEffect(() => {
-    if (!searchParams.get("role")) {
-      router.replace("/register");
-    }
-  }, [router, searchParams]);
+    setValue("role", role);
+    setValue("entityType", entityType);
+  }, [entityType, role, setValue]);
+
+  useEffect(() => {
+    if (roleParam) return;
+    router.replace("/register");
+  }, [roleParam, router]);
+
+  const onInvalid = (formErrors: FieldErrors<RegisterInput>) => {
+    toast.error(firstFormError(formErrors));
+  };
 
   const onSubmit = async (data: RegisterInput) => {
     setLoading(true);
@@ -90,7 +106,7 @@ export default function RegisterCreatePage() {
         body: JSON.stringify({
           ...data,
           role,
-          entityType: showEntityType ? entityType : undefined,
+          entityType,
         }),
       });
       const json = await readApiJson(res);
@@ -181,16 +197,20 @@ export default function RegisterCreatePage() {
           </p>
         </div>
 
-        <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" autoComplete="on">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="mt-8 space-y-5" autoComplete="on">
           {showEntityType && entityType === "COMPANY" ? (
             <div className="space-y-2.5">
               <Label htmlFor="companyName" className="text-sm font-medium text-slate-700">
                 Company name <span className="text-emerald-600">*</span>
               </Label>
               <Input id="companyName" className="h-11" {...register("companyName")} />
-              <p className="text-xs text-muted-foreground">
-                This business name will appear on your profile after registration.
-              </p>
+              {errors.companyName ? (
+                <p className="text-xs text-destructive">{errors.companyName.message}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  This business name will appear on your profile after registration.
+                </p>
+              )}
             </div>
           ) : null}
           <div className="space-y-2.5">
@@ -237,6 +257,9 @@ export default function RegisterCreatePage() {
               Phone number
             </Label>
             <Input id="phone" className="h-11" {...register("phone")} />
+            {errors.phone ? (
+              <p className="text-xs text-destructive">{errors.phone.message}</p>
+            ) : null}
           </div>
           <div className="space-y-2.5">
             <Label htmlFor="password" className="text-sm font-medium text-slate-700">
@@ -316,5 +339,13 @@ export default function RegisterCreatePage() {
         </p>
       </div>
     </AuthSplitLayout>
+  );
+}
+
+export default function RegisterCreatePage() {
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-sm text-muted-foreground">Loading…</p>}>
+      <RegisterCreateForm />
+    </Suspense>
   );
 }

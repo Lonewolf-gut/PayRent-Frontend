@@ -6,12 +6,14 @@ import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
+import { DevVerificationCodeBox } from "@/components/auth/dev-verification-code-box";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/utils/api-message";
 import { showDevVerificationCodeToast, resetDevVerificationToast } from "@/lib/utils/dev-verification-toast";
+import { fetchDevVerificationCode } from "@/lib/utils/fetch-dev-verification-code";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
@@ -40,11 +42,12 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   const email = session?.user?.email ?? "";
 
   const applyDelivery = useCallback(
-    (
+    async (
       data: VerificationDelivery | null | undefined,
       options?: { forceToast?: boolean }
     ) => {
@@ -52,10 +55,14 @@ export default function VerifyEmailPage() {
 
       setPreviewUrl(data.previewUrl ?? null);
 
-      const otpCode = data.devCode ?? null;
+      let otpCode = data.devCode ?? null;
+      if (!otpCode) {
+        otpCode = await fetchDevVerificationCode("EMAIL_VERIFY");
+      }
       if (!otpCode) return;
 
       setCode(otpCode);
+      setDevCode(otpCode);
       showDevVerificationCodeToast(otpCode, "email", {
         force: options?.forceToast,
         isDevelopment: (data as { isDevelopment?: boolean }).isDevelopment,
@@ -75,7 +82,7 @@ export default function VerifyEmailPage() {
 
         if (statusJson.success) {
           const statusData = statusJson.data as VerificationDelivery;
-          applyDelivery(statusData);
+          await applyDelivery(statusData);
 
           if (statusData.hasPendingCode || statusData.realEmailExpected) {
             setBootstrapping(false);
@@ -96,7 +103,7 @@ export default function VerifyEmailPage() {
         if (cancelled) return;
 
         if (json.success) {
-          applyDelivery(json.data as VerificationDelivery);
+          await applyDelivery(json.data as VerificationDelivery);
         } else if (res.status === 401) {
           router.replace("/login?callbackUrl=/verify-email");
         } else {
@@ -181,7 +188,7 @@ export default function VerifyEmailPage() {
       }
 
       const data = json.data as VerificationDelivery;
-      applyDelivery(data, { forceToast: true });
+      await applyDelivery(data, { forceToast: true });
 
       if (data.devCode) {
         return;
@@ -227,6 +234,10 @@ export default function VerifyEmailPage() {
 
         {bootstrapping ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Loading your code…</p>
+        ) : null}
+
+        {devCode ? (
+          <DevVerificationCodeBox code={devCode} channel="email" />
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">

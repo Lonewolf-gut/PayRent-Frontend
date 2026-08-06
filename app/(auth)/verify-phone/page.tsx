@@ -6,11 +6,13 @@ import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
+import { DevVerificationCodeBox } from "@/components/auth/dev-verification-code-box";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { resetDevVerificationToast, showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
+import { fetchDevVerificationCode } from "@/lib/utils/fetch-dev-verification-code";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getVerificationDismissedKey,
@@ -33,28 +35,51 @@ export default function VerifyPhonePage() {
   const { data: session, update } = useSession();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [smsConfigured, setSmsConfigured] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
 
-  const applyDelivery = useCallback(
+  const applyOtpCode = useCallback(
     (
+      otpCode: string | null | undefined,
+      data?: PhoneVerificationDelivery | null,
+      options?: { forceToast?: boolean }
+    ) => {
+      if (!otpCode) return;
+      setCode(otpCode);
+      setDevCode(otpCode);
+      if (data?.smsConfigured !== undefined) {
+        setSmsConfigured(Boolean(data.smsConfigured));
+      }
+      showDevVerificationCodeToast(otpCode, "phone", {
+        force: options?.forceToast,
+        isDevelopment: data?.isDevelopment,
+      });
+    },
+    []
+  );
+
+  const applyDelivery = useCallback(
+    async (
       data: PhoneVerificationDelivery | null | undefined,
       options?: { forceToast?: boolean }
     ) => {
       if (!data) return;
       if (data.phone) setPhone(data.phone);
+      if (data.smsConfigured !== undefined) {
+        setSmsConfigured(Boolean(data.smsConfigured));
+      }
 
-      const otpCode = data.devCode ?? data.code ?? null;
-      if (!otpCode) return;
+      let otpCode = data.devCode ?? data.code ?? null;
+      if (!otpCode) {
+        otpCode = await fetchDevVerificationCode("PHONE_VERIFY");
+      }
 
-      setCode(otpCode);
-      showDevVerificationCodeToast(otpCode, "phone", {
-        force: options?.forceToast,
-        isDevelopment: data.isDevelopment,
-      });
+      applyOtpCode(otpCode, data, options);
     },
-    []
+    [applyOtpCode]
   );
 
   const sendCode = useCallback(async (targetPhone?: string) => {
@@ -78,9 +103,9 @@ export default function VerifyPhonePage() {
         return;
       }
 
-      const data = json.data as PhoneVerificationDelivery;
-      applyDelivery(data, { forceToast: true });
+      await applyDelivery(json.data as PhoneVerificationDelivery, { forceToast: true });
 
+      const data = json.data as PhoneVerificationDelivery;
       if (!data.devCode && !data.code) {
         toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
       }
@@ -103,7 +128,7 @@ export default function VerifyPhonePage() {
       const json = await res.json();
       if (cancelled || !json.success) return;
 
-      applyDelivery(json.data as PhoneVerificationDelivery);
+      await applyDelivery(json.data as PhoneVerificationDelivery);
     }
 
     async function loadVerification() {
@@ -114,7 +139,7 @@ export default function VerifyPhonePage() {
 
         if (statusJson.success) {
           const statusData = statusJson.data as PhoneVerificationDelivery;
-          applyDelivery(statusData);
+          await applyDelivery(statusData);
 
           const targetPhone = statusData.phone?.trim() ?? "";
           const pendingOtp = statusData.devCode ?? statusData.code ?? null;
@@ -201,6 +226,14 @@ export default function VerifyPhonePage() {
 
         {bootstrapping ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Loading…</p>
+        ) : null}
+
+        {devCode ? (
+          <DevVerificationCodeBox
+            code={devCode}
+            channel="phone"
+            smsConfigured={smsConfigured}
+          />
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">

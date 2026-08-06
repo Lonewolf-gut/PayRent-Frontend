@@ -72,6 +72,8 @@ function RegisterCreateForm() {
     defaultValues: {
       role,
       entityType,
+      dataProcessingConsent: false,
+      termsAccepted: false,
     },
   });
 
@@ -282,12 +284,7 @@ function RegisterCreateForm() {
               <input
                 type="checkbox"
                 className="mt-1"
-                checked={watch("dataProcessingConsent") === true}
-                onChange={(e) =>
-                  setValue("dataProcessingConsent", e.target.checked ? true : (undefined as never), {
-                    shouldValidate: true,
-                  })
-                }
+                {...register("dataProcessingConsent")}
               />
               <span>
                 I consent to PayForMe collecting and processing my personal data as described in the{" "}
@@ -304,12 +301,7 @@ function RegisterCreateForm() {
               <input
                 type="checkbox"
                 className="mt-1"
-                checked={watch("termsAccepted") === true}
-                onChange={(e) =>
-                  setValue("termsAccepted", e.target.checked ? true : (undefined as never), {
-                    shouldValidate: true,
-                  })
-                }
+                {...register("termsAccepted")}
               />
               <span>
                 I accept the PayForMe{" "}

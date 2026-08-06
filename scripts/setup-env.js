@@ -88,6 +88,12 @@ if (databaseSync.synced) {
   console.log(`Copied DATABASE_URL from ${databaseSync.source}`);
 }
 
+if (!readEnvValue(content, "NEXT_PUBLIC_SHOW_DEV_OTP")) {
+  content = upsertEnvValue(content, "NEXT_PUBLIC_SHOW_DEV_OTP", '"true"');
+  fs.writeFileSync(envPath, content);
+  console.log("Enabled NEXT_PUBLIC_SHOW_DEV_OTP for local phone verification codes.");
+}
+
 console.log("");
 console.log("Frontend .env is ready.");
 console.log("IMPORTANT: Use the SAME AUTH_SECRET in PayRent-Backend/.env");

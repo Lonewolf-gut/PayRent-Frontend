@@ -1,11 +1,9 @@
+import { shouldExposeOtpCodes } from "@/lib/auth/expose-otp";
+
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
 export function isDevOtpEnabled() {
-  return (
-    process.env.NODE_ENV === "development" ||
-    process.env.SHOW_DEV_OTP === "true" ||
-    process.env.NEXT_PUBLIC_SHOW_DEV_OTP === "true"
-  );
+  return shouldExposeOtpCodes();
 }
 
 export async function readPendingPhoneCodeFromDb(userId: string, purpose: string) {

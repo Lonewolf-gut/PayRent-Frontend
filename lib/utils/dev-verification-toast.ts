@@ -21,6 +21,10 @@ type DevVerificationToastOptions = {
   isDevelopment?: boolean;
 };
 
+export function isDevOtpEnvironment(apiSaysDev?: boolean) {
+  return isDevEnvironment(apiSaysDev);
+}
+
 /**
  * Local testing helper — shows OTP in a toast when email/SMS is not delivered.
  * Disabled in production builds. Remove this file when no longer needed.

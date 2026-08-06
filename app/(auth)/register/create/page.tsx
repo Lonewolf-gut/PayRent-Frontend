@@ -14,10 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { readApiJson, stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import {
-  getPostRegisterSignInErrorMessage,
   getRegisterErrorMessage,
 } from "@/lib/utils/auth-toast-messages";
 import { toast } from "sonner";
@@ -109,24 +108,37 @@ export default function RegisterCreatePage() {
       });
 
       if (signInResult?.error) {
-        toast.error(
-          getPostRegisterSignInErrorMessage(signInResult.error, signInResult.code),
+        toast.success(
+          "Your account was created. Sign in with your email and password to verify your email.",
           { id: toastId }
         );
-        router.push(`/login/access?role=${role}`);
+        router.push(`/login/access?role=${role}&registered=1`);
         return;
       }
 
-      toast.success("Welcome! Your account is ready — verify your email to continue.", {
-        id: toastId,
-      });
+      const session = await getSession();
+      if (!session?.user) {
+        toast.success(
+          "Your account was created. Sign in to continue to email verification.",
+          { id: toastId }
+        );
+        router.push(`/login/access?role=${role}&registered=1`);
+        return;
+      }
+
+      toast.success("Welcome! Verify your email to continue.", { id: toastId });
       sessionStorage.setItem("fresh-dashboard-login", "1");
-      router.push("/verify-email");
-      router.refresh();
-    } catch {
-      toast.error("Something went wrong while creating your account. Please try again.", {
-        id: toastId,
-      });
+      window.location.assign("/verify-email");
+    } catch (error) {
+      const isNetworkError =
+        error instanceof TypeError ||
+        (error instanceof Error && /failed to fetch|network/i.test(error.message));
+      toast.error(
+        isNetworkError
+          ? "Cannot reach the server. Confirm the backend is running, then try again."
+          : "Something went wrong while creating your account. Please try again.",
+        { id: toastId }
+      );
     } finally {
       setLoading(false);
     }

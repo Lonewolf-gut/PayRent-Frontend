@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
+import { getApiErrorMessage } from "@/lib/utils/api-message";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
@@ -75,6 +75,9 @@ export default function VerifyEmailPage() {
             setBootstrapping(false);
             return;
           }
+        } else if (statusRes.status === 401) {
+          router.replace("/login?callbackUrl=/verify-email");
+          return;
         }
 
         const res = await fetch("/api/auth/resend-verification", { method: "POST" });
@@ -83,6 +86,10 @@ export default function VerifyEmailPage() {
 
         if (json.success) {
           applyDelivery(json.data as VerificationDelivery);
+        } else if (res.status === 401) {
+          router.replace("/login?callbackUrl=/verify-email");
+        } else {
+          toast.error(getApiErrorMessage(json, "Could not load your verification code."));
         }
       } catch {
         if (!cancelled) {
@@ -104,7 +111,7 @@ export default function VerifyEmailPage() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user, applyDelivery]);
+  }, [session?.user, applyDelivery, router]);
 
   const onVerify = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -157,7 +164,7 @@ export default function VerifyEmailPage() {
       const res = await fetch("/api/auth/resend-verification", { method: "POST" });
       const json = await res.json();
       if (!json.success) {
-        toast.error(json.errors?.[0]?.message ?? "Could not resend code");
+        toast.error(getApiErrorMessage(json, "Could not resend code"));
         return;
       }
 

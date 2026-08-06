@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/utils/api-message";
+import { showDevVerificationCodeToast, resetDevVerificationToast } from "@/lib/utils/dev-verification-toast";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
@@ -39,26 +40,29 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
-  const [realEmailExpected, setRealEmailExpected] = useState(false);
-  const [deliveryHint, setDeliveryHint] = useState<string | null>(null);
-  const [emailError, setEmailError] = useState<string | null>(null);
 
   const email = session?.user?.email ?? "";
 
-  const applyDelivery = useCallback((data: VerificationDelivery | null | undefined) => {
-    if (!data) return;
+  const applyDelivery = useCallback(
+    (
+      data: VerificationDelivery | null | undefined,
+      options?: { forceToast?: boolean }
+    ) => {
+      if (!data) return;
 
-    setPreviewUrl(data.previewUrl ?? null);
-    setDevCode(data.devCode ?? null);
-    setRealEmailExpected(Boolean(data.realEmailExpected));
-    setDeliveryHint(data.deliveryHint ?? null);
-    setEmailError(data.emailError ?? null);
+      setPreviewUrl(data.previewUrl ?? null);
 
-    if (data.devCode) {
-      setCode(data.devCode);
-    }
-  }, []);
+      const otpCode = data.devCode ?? null;
+      if (!otpCode) return;
+
+      setCode(otpCode);
+      showDevVerificationCodeToast(otpCode, "email", {
+        force: options?.forceToast,
+        isDevelopment: (data as { isDevelopment?: boolean }).isDevelopment,
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -167,6 +171,7 @@ export default function VerifyEmailPage() {
 
   const onResend = async () => {
     setResending(true);
+    resetDevVerificationToast("email");
     try {
       const res = await fetch("/api/auth/resend-verification", { method: "POST" });
       const json = await res.json();
@@ -176,14 +181,9 @@ export default function VerifyEmailPage() {
       }
 
       const data = json.data as VerificationDelivery;
-      applyDelivery(data);
+      applyDelivery(data, { forceToast: true });
 
       if (data.devCode) {
-        toast.success(
-          data.sent
-            ? "A new verification code was sent to your email inbox."
-            : "Your verification code is shown below."
-        );
         return;
       }
 
@@ -192,17 +192,12 @@ export default function VerifyEmailPage() {
         return;
       }
 
-      if (data.sent && data.realEmailExpected) {
+      if (data.sent) {
         toast.success("A new verification code was sent to your email inbox.");
         return;
       }
 
-      if (data.emailError) {
-        toast.error(data.emailError);
-        return;
-      }
-
-      toast.success(data.deliveryHint ?? "Verification code updated.");
+      toast.success("Verification code updated.");
     } catch {
       toast.error("Could not resend code");
     } finally {
@@ -225,45 +220,13 @@ export default function VerifyEmailPage() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-slate-900">Verify your email</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {deliveryHint ??
-              (realEmailExpected ? (
-                <>
-                  Enter the 6-digit code sent to{" "}
-                  <span className="font-medium text-foreground">{email || "your email"}</span>.
-                </>
-              ) : (
-                <>
-                  Use the verification code below for{" "}
-                  <span className="font-medium text-foreground">{email || "your email"}</span>.
-                </>
-              ))}
+            Enter the 6-digit code sent to{" "}
+            <span className="font-medium text-foreground">{email || "your email"}</span>.
           </p>
         </div>
 
         {bootstrapping ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">Loading your code…</p>
-        ) : null}
-
-        {emailError ? (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-            {emailError}
-          </div>
-        ) : null}
-
-        {devCode ? (
-          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
-              Your verification code
-            </p>
-            <p className="mt-2 font-mono text-3xl font-bold tracking-[0.35em] text-amber-950">
-              {devCode}
-            </p>
-            <p className="mt-2 text-xs text-amber-900/80">
-              {realEmailExpected
-                ? "We could not confirm delivery to your inbox. Use this code to verify, or fix your email settings and resend."
-                : "Email is not configured on the server, so the code is shown here instead of being emailed."}
-            </p>
-          </div>
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">
@@ -329,7 +292,7 @@ export default function VerifyEmailPage() {
               router.refresh();
             }}
           >
-            Skip for now
+            {session?.user?.phoneVerified ? "Skip for now" : "Continue to phone verification"}
           </button>
         </div>
       </div>

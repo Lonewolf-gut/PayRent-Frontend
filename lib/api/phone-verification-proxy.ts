@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db/prisma";
 
 const apiOrigin = (process.env.API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
@@ -12,36 +11,79 @@ function isDevOtpEnabled() {
   );
 }
 
-async function readPendingPhoneCode(userId: string) {
-  return prisma.otpCode.findFirst({
-    where: {
-      userId,
-      purpose: "PHONE_VERIFY",
-      used: false,
-      expiresAt: { gt: new Date() },
-    },
-    orderBy: { createdAt: "desc" },
-    select: { code: true },
-  });
-}
-
-async function enrichWithDevCode(userId: string, data: Record<string, unknown>) {
-  if (!isDevOtpEnabled()) return data;
-  if (data.devCode || data.code) return data;
+async function readPendingPhoneCodeFromDb(userId: string) {
+  if (!process.env.DATABASE_URL) return null;
 
   try {
-    const pending = await readPendingPhoneCode(userId);
-    if (!pending?.code) return data;
-
-    return {
-      ...data,
-      devCode: pending.code,
-      code: pending.code,
-      isDevelopment: true,
-    };
+    const { prisma } = await import("@/lib/db/prisma");
+    const pending = await prisma.otpCode.findFirst({
+      where: {
+        userId,
+        purpose: "PHONE_VERIFY",
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { code: true },
+    });
+    return pending?.code ?? null;
   } catch {
-    return data;
+    return null;
   }
+}
+
+async function fetchBackendPendingCode(cookie: string | null) {
+  const headers = new Headers();
+  if (cookie) headers.set("cookie", cookie);
+
+  const endpoints = [
+    `${apiOrigin}/api/dev/pending-otp?purpose=PHONE_VERIFY`,
+    `${apiOrigin}/api/auth/resend-phone-verification`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!json.success || !json.data) continue;
+
+      const data = json.data as Record<string, unknown>;
+      const code = (data.devCode ?? data.code) as string | null | undefined;
+      if (code && code.length >= 4) return code;
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return null;
+}
+
+async function enrichWithDevCode(
+  userId: string,
+  data: Record<string, unknown>,
+  cookie: string | null
+) {
+  if (!isDevOtpEnabled()) return data;
+
+  const existing = (data.devCode ?? data.code) as string | null | undefined;
+  if (existing && existing.length >= 4) return data;
+
+  const fromDb = await readPendingPhoneCodeFromDb(userId);
+  const fromBackend = fromDb ? null : await fetchBackendPendingCode(cookie);
+  const code = fromDb ?? fromBackend;
+
+  if (!code) return data;
+
+  return {
+    ...data,
+    devCode: code,
+    code,
+    isDevelopment: true,
+  };
 }
 
 export async function proxyPhoneVerification(req: NextRequest, method: "GET" | "POST") {
@@ -71,6 +113,10 @@ export async function proxyPhoneVerification(req: NextRequest, method: "GET" | "
     return NextResponse.json(json, { status: backendRes.status });
   }
 
-  const enriched = await enrichWithDevCode(userId, json.data as Record<string, unknown>);
+  const enriched = await enrichWithDevCode(
+    userId,
+    json.data as Record<string, unknown>,
+    cookie
+  );
   return NextResponse.json({ ...json, data: enriched }, { status: backendRes.status });
 }

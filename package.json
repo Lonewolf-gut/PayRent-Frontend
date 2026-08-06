@@ -6,6 +6,7 @@
     "dev": "next dev --port 3000 --webpack",
     "dev:webpack": "next dev --port 3000 --webpack",
     "setup:env": "node scripts/setup-env.js",
+    "predev": "node scripts/setup-env.js",
     "clean": "node scripts/clean-cache.js",
     "dev:turbo": "next dev --port 3000",
     "build": "npm run db:generate && next build --webpack",

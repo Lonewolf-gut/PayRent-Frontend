@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { isDevOtpEnvironment, resetDevVerificationToast, showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
+import { resetDevVerificationToast, showDevVerificationCodeToast } from "@/lib/utils/dev-verification-toast";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getVerificationDismissedKey,
@@ -83,11 +83,6 @@ export default function VerifyPhonePage() {
 
       if (!data.devCode && !data.code) {
         toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
-        if (isDevOtpEnvironment(data.isDevelopment)) {
-          toast.warning(
-            "Code toast needs DATABASE_URL in PayRent-Frontend/.env (copy from backend .env), then restart npm run dev."
-          );
-        }
       }
     } catch {
       toast.error("Could not send verification code");

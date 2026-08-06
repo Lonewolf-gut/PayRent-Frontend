@@ -14,8 +14,8 @@ import { getApiErrorMessage } from "@/lib/utils/api-message";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
+  getRouteAfterEmailSkip,
   getVerificationDismissedKey,
-  skipToDashboard,
 } from "@/lib/auth/verification-flow";
 import type { UserRole } from "@prisma/client";
 
@@ -320,7 +320,12 @@ export default function VerifyEmailPage() {
                 );
               }
               sessionStorage.setItem(FRESH_DASHBOARD_LOGIN_KEY, "1");
-              router.push(skipToDashboard(role));
+              router.push(
+                getRouteAfterEmailSkip({
+                  role,
+                  phoneVerified: Boolean(session?.user?.phoneVerified),
+                })
+              );
               router.refresh();
             }}
           >

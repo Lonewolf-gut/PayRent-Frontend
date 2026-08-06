@@ -14,6 +14,19 @@ export function skipToDashboard(role: UserRole | undefined) {
   return getPostLoginRoute(role);
 }
 
+/** After skipping email verification, continue to phone verification when required. */
+export function getRouteAfterEmailSkip(params: {
+  role: UserRole | undefined;
+  phoneVerified: boolean;
+}) {
+  if (!params.role) return "/";
+  return getPostAuthRoute({
+    role: params.role,
+    emailVerified: true,
+    phoneVerified: params.phoneVerified,
+  });
+}
+
 export function getPostEmailVerificationRoute(params: {
   role: UserRole;
   phoneVerified: boolean;

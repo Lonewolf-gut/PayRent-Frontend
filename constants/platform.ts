@@ -8,6 +8,25 @@ export const SUPPORT_PHONE = "+233 30 000 0000";
 export const SUPPORT_ADDRESS = "Accra, Ghana";
 export const EMAIL_DOMAIN = "payforme.com";
 
+export const SOCIAL_LINKS = [
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/company/payforme",
+  },
+  {
+    label: "X",
+    href: "https://x.com/payforme",
+  },
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/payforme",
+  },
+  {
+    label: "TikTok",
+    href: "https://www.tiktok.com/@payforme",
+  },
+] as const;
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   BUYER: "Customers",
   MERCHANT: "Merchant",

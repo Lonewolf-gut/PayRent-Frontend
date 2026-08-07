@@ -7,6 +7,7 @@ import { Navbar } from "@/components/rentvest/navbar";
 import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed-in-extras";
 import { MarketingSubscriptionShell } from "@/components/marketing/marketing-subscription-shell";
 import { MarketingThemeGuard } from "@/components/marketing/marketing-theme-guard";
+import { FooterSocialLinks } from "@/components/marketing/footer-social-links";
 
 export default async function MarketingLayout({
   children,
@@ -29,6 +30,7 @@ export default async function MarketingLayout({
             <p className="mt-3 max-w-md text-xs leading-relaxed sm:text-sm">
               Bridging buyers, sellers and lenders through flexible product financing
             </p>
+            <FooterSocialLinks />
           </div>
           <div>
             <p className="text-sm font-semibold text-emerald-950 sm:text-base">Quick links</p>

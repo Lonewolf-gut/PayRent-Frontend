@@ -21,6 +21,8 @@ import {
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/constants/platform";
 import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
 import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
+import { LandingFaqSection } from "@/components/marketing/landing-faq-section";
+import { PlatformFeaturesSection } from "@/components/marketing/platform-features-section";
 import { StatsBar } from "@/components/marketing/stats-bar";
 import { showMerchantAgentPricing } from "@/lib/subscription/pricing-visibility";
 
@@ -344,6 +346,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <PlatformFeaturesSection />
+
       <section className="relative overflow-hidden bg-slate-100 py-14 sm:py-24">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(226,232,240,0.7),transparent_70%)]" />
 
@@ -430,6 +434,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <LandingFaqSection />
 
       <section className="bg-emerald-50 py-10 sm:py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">

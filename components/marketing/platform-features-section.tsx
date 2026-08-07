@@ -8,6 +8,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import { ScrollRevealCard } from "@/components/marketing/scroll-reveal-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const features = [
@@ -70,19 +71,18 @@ export function PlatformFeaturesSection() {
         </div>
 
         <div className="mt-8 grid gap-3 sm:mt-12 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-          {features.map((feature) => (
-            <Card
-              key={feature.title}
-              className="gap-0 border border-emerald-100 bg-white py-0 text-slate-900 shadow-sm ring-0"
-            >
-              <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-5 sm:pb-2">
-                <feature.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
-                <CardTitle className="text-sm text-emerald-950 sm:text-base">{feature.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
-                <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">{feature.text}</p>
-              </CardContent>
-            </Card>
+          {features.map((feature, index) => (
+            <ScrollRevealCard key={feature.title} index={index} className="h-full">
+              <Card className="h-full gap-0 rounded-none border border-emerald-100 bg-white py-0 text-slate-900 shadow-sm ring-0 [&_[data-slot=card-header]]:rounded-none">
+                <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-5 sm:pb-2">
+                  <feature.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
+                  <CardTitle className="text-sm text-emerald-950 sm:text-base">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
+                  <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">{feature.text}</p>
+                </CardContent>
+              </Card>
+            </ScrollRevealCard>
           ))}
         </div>
       </div>

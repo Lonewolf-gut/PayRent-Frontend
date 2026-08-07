@@ -23,6 +23,7 @@ import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
 import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
 import { LandingFaqSection } from "@/components/marketing/landing-faq-section";
 import { PlatformFeaturesSection } from "@/components/marketing/platform-features-section";
+import { ScrollRevealCard } from "@/components/marketing/scroll-reveal-card";
 import { StatsBar } from "@/components/marketing/stats-bar";
 import { showMerchantAgentPricing } from "@/lib/subscription/pricing-visibility";
 
@@ -327,19 +328,18 @@ export default function HomePage() {
                   title: "Transparent Tracking",
                   text: "Clear schedules, instant payment receipts, and automated record-keeping in your personal dashboard.",
                 },
-              ].map((item) => (
-                <Card
-                  key={item.title}
-                  className="gap-0 border border-slate-200 bg-white py-0 text-slate-900 shadow-sm ring-0"
-                >
-                  <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-6 sm:pb-2">
-                    <item.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
-                    <CardTitle className="text-sm text-emerald-950 sm:text-base">{item.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                    <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">{item.text}</p>
-                  </CardContent>
-                </Card>
+              ].map((item, index) => (
+                <ScrollRevealCard key={item.title} index={index} className="h-full">
+                  <Card className="h-full gap-0 rounded-none border border-slate-200 bg-white py-0 text-slate-900 shadow-sm ring-0 [&_[data-slot=card-header]]:rounded-none">
+                    <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-6 sm:pb-2">
+                      <item.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
+                      <CardTitle className="text-sm text-emerald-950 sm:text-base">{item.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                      <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">{item.text}</p>
+                    </CardContent>
+                  </Card>
+                </ScrollRevealCard>
               ))}
             </div>
           </div>

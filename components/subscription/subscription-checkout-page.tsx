@@ -53,10 +53,15 @@ export function SubscriptionCheckoutPage() {
     queryFn: async () => {
       const res = await fetch("/api/subscriptions");
       const json = await res.json();
-      return json.data;
+      return json.data as {
+        subscription?: { plan?: string };
+        paymentDemoMode?: boolean;
+      };
     },
     enabled: !!session?.user,
   });
+
+  const paymentDemoMode = Boolean(subscriptionData?.paymentDemoMode);
 
   const { data: bankAccounts = [] } = useQuery({
     queryKey: ["settings-bank-accounts"],
@@ -126,13 +131,15 @@ export function SubscriptionCheckoutPage() {
 
       return {
         message: json.message as string | undefined,
-        checkout: json.data?.checkout,
+        checkout: json.data?.checkout as { demoCompleted?: boolean } | undefined,
       };
     },
     onSuccess: (data) => {
       toast.success(
         data?.message ??
-          "MoMo payment initiated — approve the prompt on your phone to activate your subscription."
+          (data?.checkout?.demoCompleted
+            ? "Your subscription is active (demo mode)."
+            : "MoMo payment initiated — approve the prompt on your phone to activate your subscription.")
       );
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
       router.push("/dashboard");
@@ -292,6 +299,12 @@ export function SubscriptionCheckoutPage() {
             <div className="mt-10 rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-emerald-950">Payment</h3>
 
+              {paymentDemoMode ? (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  Demo mode is on. Subscribing will activate your plan immediately without charging MoMo.
+                </div>
+              ) : null}
+
               {session?.user?.email ? (
                 <div className="mt-5">
                   <p className="text-sm text-emerald-900/70">Email</p>
@@ -306,7 +319,11 @@ export function SubscriptionCheckoutPage() {
 
               <div className="mt-6">
                 <p className="text-sm text-emerald-900/70">Payment method</p>
-                {!verifiedMomoAccounts.length ? (
+                {paymentDemoMode ? (
+                  <p className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/30 px-4 py-3 text-sm text-emerald-900/80">
+                    No MoMo account required while payment APIs are in demo mode.
+                  </p>
+                ) : !verifiedMomoAccounts.length ? (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                     Add a verified MoMo account in Settings before subscribing.
                     <div className="mt-3">
@@ -372,8 +389,7 @@ export function SubscriptionCheckoutPage() {
                 disabled={
                   checkoutMutation.isPending ||
                   isCurrentPaidPlan ||
-                  !bankAccountId ||
-                  !verifiedMomoAccounts.length ||
+                  (!paymentDemoMode && (!bankAccountId || !verifiedMomoAccounts.length)) ||
                   sessionStatus === "loading"
                 }
                 onClick={() => checkoutMutation.mutate()}
@@ -382,7 +398,9 @@ export function SubscriptionCheckoutPage() {
                   ? `${planMeta.name} plan already active`
                   : checkoutMutation.isPending
                     ? "Processing…"
-                    : `Subscribe to ${planMeta.name}`}
+                    : paymentDemoMode
+                      ? `Activate ${planMeta.name} (demo)`
+                      : `Subscribe to ${planMeta.name}`}
               </Button>
 
               <p className="mt-3 text-center text-xs text-emerald-800/60">

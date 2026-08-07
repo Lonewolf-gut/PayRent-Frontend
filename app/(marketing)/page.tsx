@@ -330,9 +330,9 @@ export default function HomePage() {
               ].map((item) => (
                 <Card
                   key={item.title}
-                  className="border border-slate-200 bg-white text-slate-900 shadow-sm ring-0"
+                  className="gap-0 border border-slate-200 bg-white py-0 text-slate-900 shadow-sm ring-0"
                 >
-                  <CardHeader className="space-y-2 p-4 sm:p-6">
+                  <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-6 sm:pb-2">
                     <item.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
                     <CardTitle className="text-sm text-emerald-950 sm:text-base">{item.title}</CardTitle>
                   </CardHeader>

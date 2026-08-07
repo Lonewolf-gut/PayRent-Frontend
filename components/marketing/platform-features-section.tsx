@@ -73,9 +73,9 @@ export function PlatformFeaturesSection() {
           {features.map((feature) => (
             <Card
               key={feature.title}
-              className="border border-emerald-100 bg-white text-slate-900 shadow-sm ring-0"
+              className="gap-0 border border-emerald-100 bg-white py-0 text-slate-900 shadow-sm ring-0"
             >
-              <CardHeader className="space-y-2 p-4 sm:p-5">
+              <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-5 sm:pb-2">
                 <feature.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
                 <CardTitle className="text-sm text-emerald-950 sm:text-base">{feature.title}</CardTitle>
               </CardHeader>

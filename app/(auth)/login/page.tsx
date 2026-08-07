@@ -46,27 +46,27 @@ export default function LoginPage() {
           <RentVestLogo showIcon={false} />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">I am a...</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">I am a...</h1>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Select your role to continue to sign in.
           </p>
         </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
           {roles.map((role) => (
             <Link key={role.key} href={`/login/access?role=${role.key}`}>
               <Card className="h-full border border-slate-200 bg-white text-slate-900 shadow-sm ring-0 transition hover:border-emerald-500 hover:shadow-md">
-                <CardHeader>
-                  <role.icon className="h-8 w-8 text-emerald-600" />
-                  <CardTitle className="text-base text-emerald-950">{role.title}</CardTitle>
+                <CardHeader className="p-4 sm:p-6">
+                  <role.icon className="h-7 w-7 text-emerald-600 sm:h-8 sm:w-8" />
+                  <CardTitle className="text-sm text-emerald-950 sm:text-base">{role.title}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-slate-600">{role.description}</p>
+                <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                  <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">{role.description}</p>
                 </CardContent>
               </Card>
             </Link>
           ))}
         </div>
-        <p className="mt-6 text-center text-sm text-slate-600">
+        <p className="mt-5 text-center text-xs text-slate-600 sm:mt-6 sm:text-sm">
           New here?{" "}
           <Link href="/register" className="font-medium text-emerald-600 hover:underline">
             Create account

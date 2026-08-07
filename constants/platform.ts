@@ -19,13 +19,13 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<string, string> = {
   BUYER:
-    "Create an account, browse products, raise pay-for-me requests, view repayment schedules, make repayments, and submit complaints.",
+    "Browse products, request pay-for-me financing, and track repayments.",
   MERCHANT:
-    "Create a business profile, upload products, manage inventory, confirm orders, update delivery status, and view sales reports.",
+    "List products, manage orders, and view sales from your dashboard.",
   MARKETER:
-    "Promote products, track referred buyers, view commission reports, and support merchant sales campaigns.",
+    "Promote listings, track referrals, and earn commissions.",
   LENDER:
-    "View eligible pay-for-me requests, accept financing requests, view repayment status, and receive repayment notifications.",
+    "Review financing requests, fund deals, and monitor repayments.",
   ADMIN:
     "Verify users, approve merchants and lenders, manage disputes, monitor transactions, configure fees, and generate reports.",
   COMPLIANCE_OFFICER:

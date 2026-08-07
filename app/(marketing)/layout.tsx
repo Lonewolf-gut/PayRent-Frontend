@@ -22,18 +22,16 @@ export default async function MarketingLayout({
       <Navbar />
       <main className="bg-white text-slate-900">{children}</main>
       <MarketingSignedInExtras />
-      <footer className="border-t border-emerald-100 bg-white py-12">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 text-sm text-emerald-800/80 sm:px-6 md:grid-cols-4">
+      <footer className="border-t border-emerald-100 bg-white py-8 sm:py-12">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 text-xs text-emerald-800/80 sm:gap-10 sm:px-6 sm:text-sm md:grid-cols-4">
           <div className="md:col-span-2">
-            <p className="text-base font-semibold text-emerald-950">PayForMe</p>
-            <p className="mt-3 max-w-md leading-relaxed">
-              A marketplace for rental finance in Ghana — connecting Customers,
-              merchants, Affiliates, and lenders. Merchants and Affiliates subscribe to list;
-              Customers and lenders join free.
+            <p className="text-sm font-semibold text-emerald-950 sm:text-base">PayForMe</p>
+            <p className="mt-3 max-w-md text-xs leading-relaxed sm:text-sm">
+              Bridging buyers, sellers and lenders through flexible product financing
             </p>
           </div>
           <div>
-            <p className="text-base font-semibold text-emerald-950">Quick links</p>
+            <p className="text-sm font-semibold text-emerald-950 sm:text-base">Quick links</p>
             <ul className="mt-3 space-y-2">
               <li>
                 <Link href="/properties" className="hover:text-emerald-950">
@@ -68,7 +66,7 @@ export default async function MarketingLayout({
             </ul>
           </div>
           <div>
-            <p className="text-base font-semibold text-emerald-950">Legal &amp; support</p>
+            <p className="text-sm font-semibold text-emerald-950 sm:text-base">Legal &amp; support</p>
             <ul className="mt-3 space-y-2">
               <li>
                 <Link href="/terms" className="hover:text-emerald-950">

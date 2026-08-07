@@ -125,14 +125,14 @@ export default function HomePage() {
 
   return (
     <div className="overflow-hidden bg-white">
-      <section className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-14">
+      <section className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:py-14">
         <div className="grid items-center gap-8 lg:grid-cols-2">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
-            <h1 className="mt-2 text-4xl font-bold leading-[1.1] tracking-tight text-emerald-950 sm:text-5xl lg:text-[3.25rem]">
+            <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-emerald-950 sm:text-4xl sm:leading-[1.1] lg:text-[3.25rem]">
               The trusted marketplace for
               <span className="text-emerald-600"> rental finance in Ghana</span>
             </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-600 sm:mt-5 sm:text-lg">
               Bridging buyers, sellers and lenders through flexible product financing.
             </p>
             <div className="mt-10 flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
@@ -146,7 +146,7 @@ export default function HomePage() {
               </Button>
             </div>
           </div>
-          <div className="relative grid h-[520px] w-full grid-cols-2 gap-4 overflow-hidden">
+          <div className="relative grid h-[360px] w-full grid-cols-2 gap-3 overflow-hidden sm:h-[520px] sm:gap-4">
             {heroColumns.map((column, columnIndex) => (
               <div key={columnIndex} className="overflow-hidden">
                 <div
@@ -180,31 +180,31 @@ export default function HomePage() {
 
       <StatsBar />
 
-      <section className="bg-emerald-50 py-20">
+      <section className="bg-emerald-50 py-12 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-emerald-950 sm:text-4xl">
+            <h2 className="text-xl font-bold tracking-tight text-emerald-950 sm:text-3xl lg:text-4xl">
               Who it&apos;s for
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-emerald-800/70">
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-emerald-800/70 sm:mt-4 sm:text-base">
               One platform for every participant in the rental and asset financing chain.
             </p>
           </div>
 
-          <div className="mt-12 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_20px_50px_rgba(6,78,59,0.08)]">
+          <div className="mt-8 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_20px_50px_rgba(6,78,59,0.08)] sm:mt-12">
             <div className="grid divide-y divide-emerald-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
               {whoItsFor.map((role, index) => (
-                <div key={role.title} className="relative px-6 py-10 sm:px-8 lg:py-12">
+                <div key={role.title} className="relative px-4 py-6 sm:px-8 sm:py-10 lg:py-12">
                   <p
-                    className="pointer-events-none select-none font-serif text-5xl leading-none text-emerald-600/15 sm:text-6xl"
+                    className="pointer-events-none select-none font-serif text-4xl leading-none text-emerald-600/15 sm:text-6xl"
                     aria-hidden
                   >
                     {role.number}
                   </p>
-                  <h3 className="mt-4 text-xl font-bold tracking-tight text-emerald-950">
+                  <h3 className="mt-3 text-base font-bold tracking-tight text-emerald-950 sm:mt-4 sm:text-xl">
                     {role.title}
                   </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-emerald-800/70 sm:text-[15px]">
+                  <p className="mt-2 text-xs leading-relaxed text-emerald-800/70 sm:mt-3 sm:text-sm">
                     {role.description}
                   </p>
 
@@ -225,11 +225,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="bg-white py-20">
+      <section id="how-it-works" className="bg-white py-12 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <h2 className="text-3xl font-bold">How it works</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
+            <h2 className="text-xl font-bold sm:text-3xl">How it works</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-muted-foreground sm:mt-4 sm:text-base">
               {PLATFORM_TAGLINE}
             </p>
           </div>
@@ -265,18 +265,18 @@ export default function HomePage() {
               />
             </div>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-emerald-600">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 sm:text-sm">
                 Step-by-step
               </p>
-              <h3 className="mt-2 text-3xl font-bold text-emerald-950">{selectedRole.title}</h3>
-              <p className="mt-2 text-lg text-emerald-700">{selectedRole.tagline}</p>
-              <ol className="mt-8 space-y-4">
+              <h3 className="mt-2 text-xl font-bold text-emerald-950 sm:text-3xl">{selectedRole.title}</h3>
+              <p className="mt-2 text-sm text-emerald-700 sm:text-lg">{selectedRole.tagline}</p>
+              <ol className="mt-6 space-y-3 sm:mt-8 sm:space-y-4">
                 {selectedRole.benefits.map((step, stepIndex) => (
-                  <li key={step} className="flex gap-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
+                  <li key={step} className="flex gap-3 sm:gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white sm:h-8 sm:w-8 sm:text-sm">
                       {stepIndex + 1}
                     </span>
-                    <span className="pt-1 text-slate-700">{step}</span>
+                    <span className="pt-0.5 text-sm text-slate-700 sm:pt-1 sm:text-base">{step}</span>
                   </li>
                 ))}
               </ol>
@@ -290,53 +290,52 @@ export default function HomePage() {
 
       {showPricingSection ? <LandlordAgentPricingCta /> : null}
 
-      <section className="py-20">
+      <section className="py-12 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid items-start gap-10 lg:grid-cols-2">
+          <div className="grid items-start gap-8 sm:gap-10 lg:grid-cols-2">
             <div>
-              <FileText className="h-10 w-10 text-emerald-600" />
-              <h2 className="mt-4 text-3xl font-bold text-emerald-950">
-                Compliance & trust by design
+              <FileText className="h-8 w-8 text-emerald-600 sm:h-10 sm:w-10" />
+              <h2 className="mt-3 text-xl font-bold text-emerald-950 sm:mt-4 sm:text-3xl">
+                Built for Safety, Privacy &amp; Total Transparency
               </h2>
-              <p className="mt-4 text-slate-600">
-                Ghana Card verification, bank account validation, mandate lifecycle tracking,
-                repayment schedules, settlement records, reconciliation exceptions, and audit logs
-                are built into every sensitive workflow.
+              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:mt-4 sm:text-base">
+                Rent and transact with complete peace of mind. Our platform is engineered with
+                bank-grade security and verified user protections at every step.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
               {[
                 {
                   icon: Shield,
-                  title: "KYC & verification",
-                  text: "Identity and bank validation with admin exception review.",
+                  title: "Verified Profiles Only",
+                  text: "Instant identity checks guarantee you are always dealing with legitimate participants.",
                 },
                 {
                   icon: Wallet,
-                  title: "Payments & mandates",
-                  text: "Direct debit mandates, deductions, retries, and settlement.",
+                  title: "Secure Payments & Payouts",
+                  text: "Automated direct debit, protected settlement tracking, and zero hidden transaction fees.",
                 },
                 {
                   icon: Building2,
-                  title: "Listings & applications",
-                  text: "Publication workflow with merchant and Affiliate review queues.",
+                  title: "Vetted Listings",
+                  text: "Every property and service undergoes rigorous admin review before going live.",
                 },
                 {
                   icon: Users,
-                  title: "Role-based access",
-                  text: "Dedicated dashboards for every participant in the rental chain.",
+                  title: "Transparent Tracking",
+                  text: "Clear schedules, instant payment receipts, and automated record-keeping in your personal dashboard.",
                 },
               ].map((item) => (
                 <Card
                   key={item.title}
                   className="border border-slate-200 bg-white text-slate-900 shadow-sm ring-0"
                 >
-                  <CardHeader>
-                    <item.icon className="h-6 w-6 text-emerald-600" />
-                    <CardTitle className="text-base text-emerald-950">{item.title}</CardTitle>
+                  <CardHeader className="space-y-2 p-4 sm:p-6">
+                    <item.icon className="h-5 w-5 text-emerald-600 sm:h-6 sm:w-6" />
+                    <CardTitle className="text-sm text-emerald-950 sm:text-base">{item.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-slate-600">{item.text}</p>
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                    <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">{item.text}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -345,18 +344,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden bg-slate-100 py-24">
+      <section className="relative overflow-hidden bg-slate-100 py-14 sm:py-24">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(226,232,240,0.7),transparent_70%)]" />
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 sm:text-sm">
               What our users say
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-slate-800 sm:text-4xl">
+            <h2 className="mt-3 text-xl font-bold text-slate-800 sm:mt-4 sm:text-3xl lg:text-4xl">
               Trusted across Ghana
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-slate-500">
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-500 sm:mt-3 sm:text-base">
               Hear from Customers, merchants, Affiliates, and lenders using {PLATFORM_NAME} every day.
             </p>
           </div>
@@ -388,9 +387,9 @@ export default function HomePage() {
                           className="object-cover"
                         />
                       </div>
-                      <p className="mt-6 text-lg font-semibold text-slate-800">{item.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.role}</p>
-                      <p className="mt-8 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl sm:leading-9">
+                      <p className="mt-4 text-base font-semibold text-slate-800 sm:mt-6 sm:text-lg">{item.name}</p>
+                      <p className="mt-1 text-xs text-slate-500 sm:text-sm">{item.role}</p>
+                      <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600 sm:mt-8 sm:text-lg sm:leading-8 lg:text-xl lg:leading-9">
                         &ldquo;{item.quote}&rdquo;
                       </p>
                       <div className="mt-8 flex items-center gap-1 text-amber-400">
@@ -432,12 +431,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-emerald-50 py-16">
+      <section className="bg-emerald-50 py-10 sm:py-16">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-2xl font-bold text-emerald-950">
+          <h2 className="text-lg font-bold text-emerald-950 sm:text-2xl">
             {isSignedIn ? "Ready to explore?" : "Ready to get started?"}
           </h2>
-          <p className="mt-3 text-emerald-800/80">
+          <p className="mt-2 text-sm text-emerald-800/80 sm:mt-3 sm:text-base">
             {isSignedIn
               ? "Browse verified listings for homes, vehicles, and appliances across Ghana."
               : "Create your account as a Customer, merchant, Affiliate, or lender and access your role-specific dashboard."}

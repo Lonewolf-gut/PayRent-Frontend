@@ -101,14 +101,14 @@ export function StatsBar() {
       <div className="mx-auto grid w-full max-w-7xl grid-cols-2 gap-x-4 gap-y-6 px-4 text-center sm:grid-cols-4 sm:gap-8 sm:px-6">
         {STATS.map((stat) => (
           <div key={stat.label}>
-            <p className="text-2xl font-bold text-white sm:text-3xl">
+            <p className="text-xl font-bold text-white sm:text-3xl">
               {"text" in stat ? (
                 <TextStat text={stat.text} />
               ) : (
                 <CountUpValue target={stat.target} suffix={stat.suffix} />
               )}
             </p>
-            <p className="mt-1 text-xs text-emerald-50 sm:text-sm">{stat.label}</p>
+            <p className="mt-1 text-[11px] text-emerald-50 sm:text-sm">{stat.label}</p>
           </div>
         ))}
       </div>

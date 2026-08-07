@@ -201,6 +201,12 @@
     margin-bottom: calc(var(--spacing) * 4);
   }
 
+  [data-slot="native-select"],
+  [data-slot="native-select"] option {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+
   [data-sonner-toaster] [data-sonner-toast] {
     background-color: #fff !important;
     color: oklch(0.32 0.08 160) !important;

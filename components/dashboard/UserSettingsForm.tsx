@@ -772,6 +772,7 @@ export default function UserSettingsForm({
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder={accountType === "MOMO" ? "0551234567" : "Account number"}
                   inputMode={accountType === "MOMO" ? "tel" : "numeric"}
+                  className="bg-white text-slate-900 placeholder:text-slate-400 dark:bg-white dark:text-slate-900"
                 />
               </div>
 

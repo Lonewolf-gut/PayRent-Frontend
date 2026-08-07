@@ -66,16 +66,55 @@ export function handleApiError(error: unknown): {
     };
   }
 
-  if (prismaCode === "P2022") {
+  if (prismaCode === "P2002") {
+    const target =
+      error &&
+      typeof error === "object" &&
+      "meta" in error &&
+      error.meta &&
+      typeof error.meta === "object" &&
+      "target" in error.meta &&
+      Array.isArray((error.meta as { target?: string[] }).target)
+        ? (error.meta as { target: string[] }).target
+        : [];
+
+    if (target.includes("email")) {
+      return {
+        message:
+          "This email is already registered. Sign in instead or use a different email address.",
+        statusCode: 409,
+        code: "EMAIL_ALREADY_REGISTERED",
+      };
+    }
+  }
+
+  if (prismaCode === "P2021" || prismaCode === "P2022") {
     return {
       message:
-        "Your listing could not be saved because the database is missing a required column. Please run database migrations and try again.",
+        "The database schema is out of date. In the backend project folder, run: npm run db:push",
       statusCode: 503,
       code: "SCHEMA_MISMATCH",
     };
   }
 
   console.error("Unhandled error:", error);
+
+  if (process.env.NODE_ENV !== "production") {
+    const devMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : "";
+    if (devMessage.trim()) {
+      return {
+        message: devMessage,
+        statusCode: 500,
+        code: "INTERNAL_ERROR",
+      };
+    }
+  }
+
   return {
     message: "Something went wrong on our end. Please try again in a moment.",
     statusCode: 500,

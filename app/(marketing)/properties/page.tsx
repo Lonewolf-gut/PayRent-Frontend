@@ -111,7 +111,7 @@ export default function PropertiesPage() {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="rounded-2xl bg-white p-4 sm:p-5">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm">
             <SlidersHorizontal className="h-4 w-4 text-emerald-600" />
             <span>Search &amp; filters</span>

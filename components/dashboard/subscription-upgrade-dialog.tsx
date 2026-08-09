@@ -62,11 +62,11 @@ export function SubscriptionUpgradeDialog() {
         )}
       >
         <div className="flex max-h-[90vh] flex-col overflow-y-auto border border-border bg-background text-foreground shadow-xl">
-          <DialogHeader className="border-b border-border px-4 py-3 text-center sm:px-6 sm:py-5">
-            <DialogTitle className="text-lg font-semibold text-foreground sm:text-2xl">
+          <DialogHeader className="border-b border-border px-4 py-2.5 text-center sm:px-6 sm:py-5">
+            <DialogTitle className="text-base font-semibold text-foreground sm:text-2xl">
               Adjust your plan
             </DialogTitle>
-            <p className="text-xs text-muted-foreground sm:text-sm">
+            <p className="text-[11px] text-muted-foreground sm:text-sm">
               Save 20% when billed annually on checkout
             </p>
           </DialogHeader>

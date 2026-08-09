@@ -83,7 +83,7 @@ export function Navbar() {
   });
 
   const currentPlan = normalizeSubscriptionPlan(
-    subscriptionData?.subscription?.plan ?? "FREE"
+    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
   );
   const showUpgradeInMenu =
     !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);

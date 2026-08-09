@@ -55,6 +55,7 @@ export function SubscriptionCheckoutPage() {
       const json = await res.json();
       return json.data as {
         subscription?: { plan?: string };
+        access?: { plan?: string };
         paymentDemoMode?: boolean;
       };
     },
@@ -78,7 +79,7 @@ export function SubscriptionCheckoutPage() {
   );
 
   const currentPlan = normalizeSubscriptionPlan(
-    subscriptionData?.subscription?.plan ?? "FREE"
+    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
   );
   const role = session?.user?.role;
   const canSubscribe = role ? roleRequiresSubscription(role) : true;
@@ -112,16 +113,20 @@ export function SubscriptionCheckoutPage() {
         throw new Error("Please accept the subscription terms to continue.");
       }
 
+      const payload: Record<string, string> = {
+        action: "upgrade",
+        plan: checkoutPlan,
+        billingCycle,
+        paymentMethod: "momo",
+      };
+      if (bankAccountId) {
+        payload.bankAccountId = bankAccountId;
+      }
+
       const res = await fetch("/api/subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "upgrade",
-          plan: checkoutPlan,
-          billingCycle,
-          paymentMethod: "momo",
-          bankAccountId,
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!json.success) {
@@ -141,7 +146,7 @@ export function SubscriptionCheckoutPage() {
             ? "Your subscription is active (demo mode)."
             : "MoMo payment initiated — approve the prompt on your phone to activate your subscription.")
       );
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      void queryClient.invalidateQueries({ queryKey: ["subscription"] });
       router.push("/dashboard");
     },
     onError: (error: Error) => {

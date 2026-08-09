@@ -19,7 +19,9 @@ export function useSubscriptionPlan() {
     },
   });
 
-  const plan = normalizeSubscriptionPlan(data?.subscription?.plan ?? "FREE");
+  const plan = normalizeSubscriptionPlan(
+    data?.subscription?.plan ?? data?.access?.plan ?? "FREE"
+  );
 
   return {
     isLoading,
@@ -46,7 +48,9 @@ export function SubscriptionStatusBanner() {
     enabled: showSubscriptionUi,
   });
 
-  const plan = normalizeSubscriptionPlan(data?.subscription?.plan ?? "FREE");
+  const plan = normalizeSubscriptionPlan(
+    data?.subscription?.plan ?? data?.access?.plan ?? "FREE"
+  );
   const hasPaidPlan = isPaidPlan(plan);
 
   if (!showSubscriptionUi || dismissed || hasPaidPlan) return null;

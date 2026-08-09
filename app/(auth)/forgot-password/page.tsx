@@ -4,11 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RentVestLogo } from "@/components/rentvest/logo";
-import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
+import { AuthFooter } from "@/components/rentvest/auth-footer";
+import { DashboardThemeProvider } from "@/components/dashboard/dashboard-theme-provider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+const fieldClassName =
+  "h-11 border-input bg-background text-foreground placeholder:text-muted-foreground";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -75,125 +79,128 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <AuthSplitLayout
-      hero={
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1400&q=80')] bg-cover bg-center">
-          <div className="flex h-full flex-col justify-end p-12">
-            <div className="max-w-lg rounded-xl bg-black/50 p-8 backdrop-blur-sm">
-              <h2 className="text-3xl font-semibold leading-tight tracking-tight">
-                Reset your password
-              </h2>
-              <p className="mt-3 text-base leading-relaxed text-emerald-50/90">
-                We&apos;ll send a secure code to your email so you can regain access to your
-                PayForMe account.
-              </p>
-            </div>
+    <DashboardThemeProvider className="flex min-h-screen flex-col">
+      <div className="flex flex-1 flex-col px-4 py-8 sm:px-8 sm:py-10">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
+          <div className="mb-6 flex justify-center">
+            <RentVestLogo showIcon={false} />
           </div>
-        </div>
-      }
-    >
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex justify-center">
-          <RentVestLogo showIcon={false} />
-        </div>
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            {step === "email" ? "Forgot password" : "Reset password"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {step === "email"
-              ? "Enter your email to receive a reset code."
-              : "Enter the code and choose a new password."}
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+              {step === "email" ? "Forgot password" : "Reset password"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {step === "email"
+                ? "Enter your email to receive a reset code."
+                : "Enter the code and choose a new password."}
+            </p>
+          </div>
+
+          {step === "email" ? (
+            <form onSubmit={onRequestCode} className="mt-8 space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-foreground">
+                  Email address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  className={fieldClassName}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@example.com"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-11 w-full bg-emerald-600 hover:bg-emerald-700"
+                disabled={loading || !email}
+              >
+                {loading ? "Sending..." : "Send reset code"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={onResetPassword} className="mt-8 space-y-4">
+              {devResetCode ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-foreground">
+                  <p className="font-medium">Development reset code</p>
+                  <p className="mt-1 font-mono text-lg tracking-widest">{devResetCode}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Email is not configured locally, so the code is shown here instead.
+                  </p>
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <Label htmlFor="email-readonly" className="text-foreground">
+                  Email
+                </Label>
+                <Input
+                  id="email-readonly"
+                  type="email"
+                  className={fieldClassName}
+                  value={email}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="code" className="text-foreground">
+                  Reset code
+                </Label>
+                <Input
+                  id="code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className={fieldClassName}
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  placeholder="6-digit code"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground">
+                  New password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  className={fieldClassName}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="At least 8 chars, 1 uppercase, 1 number"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-11 w-full bg-emerald-600 hover:bg-emerald-700"
+                disabled={loading || !code || !password}
+              >
+                {loading ? "Updating..." : "Update password"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full border-input bg-background text-foreground hover:bg-muted"
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                  setPassword("");
+                  setDevResetCode(null);
+                }}
+              >
+                Use a different email
+              </Button>
+            </form>
+          )}
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Remembered your password?{" "}
+            <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+              Back to sign in
+            </Link>
           </p>
         </div>
-        {step === "email" ? (
-          <form onSubmit={onRequestCode} className="mt-8 space-y-5">
-            <div className="space-y-2.5">
-              <Label htmlFor="email">Enter your email address</Label>
-              <Input
-                id="email"
-                type="email"
-                className="h-11"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@example.com"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="h-11 w-full rounded-full bg-emerald-600 hover:bg-emerald-700"
-              disabled={loading || !email}
-            >
-              {loading ? "Sending..." : "Send reset code"}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={onResetPassword} className="mt-8 space-y-4">
-            {devResetCode ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                <p className="font-medium">Development reset code</p>
-                <p className="mt-1 font-mono text-lg tracking-widest">{devResetCode}</p>
-                <p className="mt-2 text-xs text-amber-800">
-                  Email is not configured locally, so the code is shown here instead of Gmail.
-                </p>
-              </div>
-            ) : null}
-            <div>
-              <Label htmlFor="email-readonly">Email</Label>
-              <Input id="email-readonly" type="email" className="h-11" value={email} readOnly />
-            </div>
-            <div>
-              <Label htmlFor="code">Reset code</Label>
-              <Input
-                id="code"
-                inputMode="numeric"
-                maxLength={6}
-                className="h-11"
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                placeholder="6-digit code"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">New password</Label>
-              <Input
-                id="password"
-                type="password"
-                className="h-11"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="At least 8 chars, 1 uppercase, 1 number"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="h-11 w-full rounded-full bg-emerald-600 hover:bg-emerald-700"
-              disabled={loading || !code || !password}
-            >
-              {loading ? "Updating..." : "Update password"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full"
-              onClick={() => {
-                setStep("email");
-                setCode("");
-                setPassword("");
-                setDevResetCode(null);
-              }}
-            >
-              Use a different email
-            </Button>
-          </form>
-        )}
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Remembered your password?{" "}
-          <Link href="/login" className="text-emerald-600 hover:underline">
-            Back to sign in
-          </Link>
-        </p>
       </div>
-    </AuthSplitLayout>
+      <AuthFooter className="mt-auto shrink-0" />
+    </DashboardThemeProvider>
   );
 }

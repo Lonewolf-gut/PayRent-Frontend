@@ -42,7 +42,7 @@ export function SubscriptionUpgradeDialog() {
   });
 
   const currentPlan = normalizeSubscriptionPlan(
-    subscriptionData?.subscription?.plan ?? "FREE"
+    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
   );
 
   function handlePlanSelect(plan: CheckoutPlanId) {
@@ -100,7 +100,9 @@ export function SidebarUpgradeCard({ compact = false }: { compact?: boolean }) {
     enabled: !!session?.user,
   });
 
-  const plan = normalizeSubscriptionPlan(subscriptionData?.subscription?.plan ?? "FREE");
+  const plan = normalizeSubscriptionPlan(
+    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
+  );
   const planLabel = PLAN_CATALOG[plan]?.name ?? "Free";
   const showCard = role === "MERCHANT" || role === "MARKETER";
 

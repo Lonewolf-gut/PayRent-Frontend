@@ -103,6 +103,7 @@ export function DashboardHeader({
                     showLogo
                     showThemeToggle
                     onNavigate={() => setMenuOpen(false)}
+                    onSignOut={() => signOut({ callbackUrl: "/" })}
                   />
                 </SheetContent>
               </Sheet>
@@ -127,7 +128,7 @@ export function DashboardHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <ThemeToggle />
+          <ThemeToggle className="hidden lg:inline-flex" />
           <NavQuickActions />
           <NotificationsPopover />
           <DropdownMenu>
@@ -183,15 +184,6 @@ export function DashboardHeader({
             onClick={() => signOut({ callbackUrl: "/" })}
           >
             Sign out
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="sm:hidden"
-            aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: "/" })}
-          >
-            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
@@ -251,6 +243,7 @@ export function AdminDashboardHeader({
                     showLogo
                     showThemeToggle
                     onNavigate={() => setMenuOpen(false)}
+                    onSignOut={() => signOut({ callbackUrl: signOutPath })}
                   />
                 </SheetContent>
               </Sheet>
@@ -263,7 +256,7 @@ export function AdminDashboardHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <ThemeToggle />
+          <ThemeToggle className="hidden lg:inline-flex" />
           <NotificationsPopover />
           <div className="flex min-w-0 items-center gap-2 rounded-none border border-border/60 bg-muted/30 py-1 pl-1 pr-3">
             <ProfileImage
@@ -286,15 +279,6 @@ export function AdminDashboardHeader({
             onClick={() => signOut({ callbackUrl: signOutPath })}
           >
             Sign out
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="rounded-none sm:hidden"
-            aria-label="Sign out"
-            onClick={() => signOut({ callbackUrl: signOutPath })}
-          >
-            <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>

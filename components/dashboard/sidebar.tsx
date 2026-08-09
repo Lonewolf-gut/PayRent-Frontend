@@ -21,6 +21,7 @@ import {
   Share2,
   Coins,
   Package,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ import {
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { getStaffPortalHomePath } from "@/lib/auth/route-guards";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { SidebarUpgradeCard } from "@/components/dashboard/subscription-upgrade-dialog";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
@@ -98,12 +100,14 @@ export function SidebarNavContent({
   onNavigate,
   showLogo = false,
   showThemeToggle = false,
+  onSignOut,
 }: {
   items: NavItem[];
   title: string;
   onNavigate?: () => void;
   showLogo?: boolean;
   showThemeToggle?: boolean;
+  onSignOut?: () => void;
 }) {
   const pathname = usePathname();
   const badgeCountMap = useSidebarBadges(items);
@@ -111,16 +115,16 @@ export function SidebarNavContent({
   return (
     <div className="flex h-full flex-col">
       {showLogo ? (
-        <div className="flex h-16 items-center border-b border-border px-6">
+        <div className="flex h-14 items-center border-b border-border px-4 sm:h-16 sm:px-6">
           <RentVestLogo showIcon={false} href={getStaffPortalHomePath(title)} />
         </div>
       ) : null}
-      <div className="px-4 py-4">
+      <div className={cn("px-4", showThemeToggle ? "py-3" : "py-4")}>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {title}
         </p>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-6">
+      <nav className={cn("flex-1 space-y-1 overflow-y-auto px-3", showThemeToggle ? "pb-3" : "pb-6")}>
         {items.map((item) => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href;
@@ -152,14 +156,33 @@ export function SidebarNavContent({
         })}
       </nav>
       {showThemeToggle ? (
-        <div className="border-t border-border px-4 py-4 lg:hidden">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Appearance
-          </p>
-          <ThemeToggle />
+        <div className="shrink-0 space-y-2 border-t border-border px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Appearance
+            </p>
+            <ThemeToggle />
+          </div>
+          <SidebarUpgradeCard compact />
+          {onSignOut ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 w-full justify-start gap-2 text-xs"
+              onClick={() => {
+                onSignOut();
+                onNavigate?.();
+              }}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign out
+            </Button>
+          ) : null}
         </div>
-      ) : null}
-      <SidebarUpgradeCard />
+      ) : (
+        <SidebarUpgradeCard />
+      )}
     </div>
   );
 }

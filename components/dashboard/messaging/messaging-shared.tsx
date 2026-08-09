@@ -206,14 +206,14 @@ export function ConversationList({
       <div
         className={cn(
           "flex flex-col items-center justify-center text-center",
-          compact ? "px-4 py-10" : "px-6 py-14"
+          compact ? "px-3 py-8 sm:px-4 sm:py-10" : "px-4 py-10 sm:px-6 sm:py-14"
         )}
       >
-        <div className="flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-          <MessageCircleMore className="size-8" strokeWidth={1.75} />
+        <div className="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 sm:size-16">
+          <MessageCircleMore className="size-6 sm:size-8" strokeWidth={1.75} />
         </div>
-        <p className="mt-4 text-sm font-medium text-foreground">No messages yet</p>
-        <p className="mt-1 max-w-[220px] text-xs text-muted-foreground">
+        <p className="mt-3 text-xs font-medium text-foreground sm:mt-4 sm:text-sm">No messages yet</p>
+        <p className="mt-1 max-w-[200px] text-[11px] text-muted-foreground sm:max-w-[220px] sm:text-xs">
           When you send or receive messages, they will appear here.
         </p>
       </div>
@@ -235,8 +235,8 @@ export function ConversationList({
             type="button"
             onClick={() => onSelect(conv.id)}
             className={cn(
-              "flex w-full items-start gap-3 text-left transition-colors",
-              compact ? "px-3 py-3" : "px-4 py-3",
+              "flex w-full items-start gap-2.5 text-left transition-colors sm:gap-3",
+              compact ? "px-2.5 py-2.5 sm:px-3 sm:py-3" : "px-3 py-2.5 sm:px-4 sm:py-3",
               variant === "linkedin"
                 ? isActive
                   ? "bg-muted/80"
@@ -247,22 +247,22 @@ export function ConversationList({
             )}
           >
             <div className="relative shrink-0">
-              <Avatar className={variant === "linkedin" ? "size-12" : "size-10"}>
+              <Avatar className={variant === "linkedin" ? "size-10 sm:size-12" : "size-9 sm:size-10"}>
                 {other?.image ? <AvatarImage src={other.image} alt={title} /> : null}
                 <AvatarFallback>{getInitials(other?.displayName ?? title)}</AvatarFallback>
               </Avatar>
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-semibold">{title}</p>
+                <p className="truncate text-xs font-semibold sm:text-sm">{title}</p>
                 {conv.lastMessage ? (
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                  <span className="shrink-0 text-[10px] text-muted-foreground sm:text-[11px]">
                     {format(new Date(conv.lastMessage.createdAt), "MMM d")}
                   </span>
                 ) : null}
               </div>
               <div className="mt-0.5 flex items-center justify-between gap-2">
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
                   {previewPrefix}
                   {conv.lastMessage?.content ?? "No messages"}
                 </p>
@@ -311,8 +311,8 @@ export function ChatThread({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {showHeader ? (
-        <div className="border-b px-4 py-3">
-          <p className="font-medium">{title}</p>
+        <div className="border-b px-3 py-2.5 sm:px-4 sm:py-3">
+          <p className="text-sm font-medium sm:text-base">{title}</p>
         </div>
       ) : null}
       <div className={`space-y-3 ${scrollClass}`}>
@@ -336,7 +336,7 @@ export function ChatThread({
                 ) : null}
                 <div
                   className={cn(
-                    "w-fit rounded-2xl px-3 py-2 text-sm",
+                    "w-fit rounded-2xl px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm",
                     bubbleMaxClass,
                     isOwn ? "bg-emerald-600 text-white" : "bg-muted text-foreground"
                   )}
@@ -377,7 +377,7 @@ export function ChatThread({
           />
         ) : null}
       </div>
-      <div className={cn("flex gap-2 border-t", compact ? "p-2.5" : "p-3")}>
+      <div className={cn("flex gap-2 border-t", compact ? "p-2" : "p-2.5 sm:p-3")}>
         <Input
           placeholder="Type a message..."
           value={content}
@@ -385,9 +385,11 @@ export function ChatThread({
           onKeyDown={(e) => {
             if (e.key === "Enter" && content.trim() && !sending) onSend();
           }}
+          className="h-8 text-xs sm:h-9 sm:text-sm"
         />
         <Button
-          className="bg-emerald-600 hover:bg-emerald-700"
+          size="sm"
+          className="h-8 bg-emerald-600 px-3 text-xs hover:bg-emerald-700 sm:h-9 sm:text-sm"
           disabled={!content.trim() || sending}
           onClick={onSend}
         >

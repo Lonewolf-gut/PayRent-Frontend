@@ -25,7 +25,9 @@ export function DashboardShell({
         <DashboardHeader navItems={items} sidebarTitle={title} />
         <TrialStatusBanner fullWidth />
         <VerificationPromptDialog />
-        <div className="flex-1 overflow-auto p-4 sm:p-6">{children}</div>
+        <div className="flex-1 overflow-auto p-3 sm:p-6 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:sm:text-2xl [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:sm:text-xl">
+          {children}
+        </div>
         <MessagesWidget />
       </div>
       <SubscriptionUpgradeDialog />

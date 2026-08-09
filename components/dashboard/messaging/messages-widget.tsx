@@ -88,14 +88,14 @@ export function MessagesWidget() {
         <div
           className={cn(
             "origin-bottom flex flex-col overflow-hidden rounded-t-xl border border-b-0 bg-card shadow-2xl transition-all duration-300 ease-out",
-            inChat ? "w-[min(100vw-1rem,640px)]" : "w-[min(100vw-1rem,360px)]",
+            inChat ? "w-[min(calc(100vw-1rem),20rem)] sm:w-[min(100vw-1rem,640px)]" : "w-[min(calc(100vw-1rem),20rem)] sm:w-[min(100vw-1rem,360px)]",
             isExpanded
               ? "translate-y-0 opacity-100"
               : "pointer-events-none max-h-0 translate-y-full opacity-0"
           )}
         >
-          <div className="flex items-center gap-2 border-b px-3 py-2.5">
-            <Avatar className="size-8">
+          <div className="flex items-center gap-2 border-b px-2.5 py-2 sm:px-3 sm:py-2.5">
+            <Avatar className="size-7 sm:size-8">
               {(profile?.image ?? session.user.image) ? (
                 <AvatarImage
                   src={profile?.image ?? session.user.image ?? undefined}
@@ -104,7 +104,7 @@ export function MessagesWidget() {
               ) : null}
               <AvatarFallback className="text-xs">{getInitials(displayName)}</AvatarFallback>
             </Avatar>
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+            <p className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
               {inChat ? title : "Messaging"}
             </p>
             <Button
@@ -127,12 +127,12 @@ export function MessagesWidget() {
           <div
             className={cn(
               "flex min-h-0",
-              inChat ? "h-[min(72vh,520px)]" : "h-[min(60vh,420px)]"
+              inChat ? "h-[min(58vh,360px)] sm:h-[min(72vh,520px)]" : "h-[min(50vh,320px)] sm:h-[min(60vh,420px)]"
             )}
           >
             {inChat ? (
               <>
-                <div className="w-[40%] shrink-0 border-r">
+                <div className="hidden w-[40%] shrink-0 border-r sm:block">
                   <MessagingListPanel
                     conversations={conversations}
                     activeId={activeId}
@@ -180,9 +180,9 @@ export function MessagesWidget() {
             type="button"
             onClick={openWidget}
             aria-label="Open messaging"
-            className="relative mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
+            className="relative mb-3 flex size-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700 sm:size-14"
           >
-            <MessagesSquare className="size-6" strokeWidth={1.75} />
+            <MessagesSquare className="size-5 sm:size-6" strokeWidth={1.75} />
             {badge ? (
               <span className="absolute -right-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
                 {badge}
@@ -193,10 +193,10 @@ export function MessagesWidget() {
           <button
             type="button"
             onClick={openWidget}
-            className="flex w-[min(100vw-1rem,360px)] items-center gap-3 rounded-t-xl border border-b-0 bg-card px-3 py-2.5 shadow-xl transition hover:bg-muted/40"
+            className="flex w-[min(calc(100vw-1rem),20rem)] items-center gap-2.5 rounded-t-xl border border-b-0 bg-card px-2.5 py-2 shadow-xl transition hover:bg-muted/40 sm:w-[min(100vw-1rem,360px)] sm:gap-3 sm:px-3 sm:py-2.5"
           >
             <div className="relative">
-              <Avatar className="size-9">
+              <Avatar className="size-8 sm:size-9">
                 {(profile?.image ?? session.user.image) ? (
                   <AvatarImage
                     src={profile?.image ?? session.user.image ?? undefined}
@@ -207,7 +207,7 @@ export function MessagesWidget() {
               </Avatar>
               <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-emerald-500" />
             </div>
-            <span className="flex-1 text-left text-sm font-medium">Messaging</span>
+            <span className="flex-1 text-left text-xs font-medium sm:text-sm">Messaging</span>
             {badge ? (
               <span className="flex min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                 {badge}

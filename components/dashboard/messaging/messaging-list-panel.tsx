@@ -83,16 +83,16 @@ export function MessagingListPanel({
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-card", className)}>
-      <div className={cn("shrink-0 border-b", compact ? "px-3 py-3" : "px-4 py-4")}>
+      <div className={cn("shrink-0 border-b", compact ? "px-2.5 py-2 sm:px-3 sm:py-3" : "px-3 py-3 sm:px-4 sm:py-4")}>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground sm:left-3 sm:h-4 sm:w-4" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search messages"
             className={cn(
-              "rounded-full border-muted bg-muted/50 pl-9 pr-10",
-              compact ? "h-9 text-sm" : "h-10"
+              "rounded-full border-muted bg-muted/50 pl-8 pr-9 text-xs sm:pl-9 sm:pr-10 sm:text-sm",
+              compact ? "h-8 sm:h-9" : "h-9 sm:h-10"
             )}
           />
           <DropdownMenu>
@@ -137,14 +137,14 @@ export function MessagingListPanel({
           </DropdownMenu>
         </div>
 
-        <div className="mt-3 flex gap-6 border-b">
+        <div className="mt-2 flex gap-4 border-b sm:mt-3 sm:gap-6">
           {TABS.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setTab(item)}
               className={cn(
-                "pb-2 text-sm font-semibold transition-colors",
+                "pb-1.5 text-xs font-semibold transition-colors sm:pb-2 sm:text-sm",
                 tab === item
                   ? "border-b-2 border-emerald-700 text-foreground"
                   : "text-muted-foreground hover:text-foreground"

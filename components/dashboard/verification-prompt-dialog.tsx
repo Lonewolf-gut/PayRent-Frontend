@@ -168,31 +168,31 @@ export function VerificationPromptDialog() {
     >
       <DialogContent
         className={cn(
-          "border-border bg-popover text-popover-foreground sm:max-w-lg",
+          "max-h-[min(92vh,640px)] gap-4 overflow-y-auto border-border bg-popover p-4 text-popover-foreground sm:max-w-lg sm:p-6",
           isDark && "dark"
         )}
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+        <DialogHeader className="space-y-1.5 text-left">
+          <DialogTitle className="flex items-center gap-2 text-base font-semibold sm:text-lg">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 sm:h-5 sm:w-5" />
             Complete your verification
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs leading-relaxed sm:text-sm">
             Finish these steps to unlock the full PayForMe experience and keep your account in good
             standing.
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="space-y-3 py-2">
-          <li className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5">
+        <ul className="max-h-[min(46vh,320px)] space-y-2 overflow-y-auto overscroll-contain py-1 sm:space-y-2.5">
+          <li className="flex items-start gap-2.5 rounded-md border border-border px-2.5 py-2 sm:gap-3 sm:px-3 sm:py-2.5">
             {emailVerified ? (
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 sm:h-4 sm:w-4" />
             ) : (
-              <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <Circle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
             )}
-            <div>
-              <p className="text-sm font-medium">Verify your email</p>
-              <p className="text-xs text-muted-foreground">
+            <div className="min-w-0">
+              <p className="text-xs font-medium sm:text-sm">Verify your email</p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
                 {emailVerified
                   ? "Your email address is verified."
                   : "Check your inbox for the verification code or open the verify email page."}
@@ -203,18 +203,18 @@ export function VerificationPromptDialog() {
           {checklist.map((item) => (
             <li
               key={item.id}
-              className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5"
+              className="flex items-start gap-2.5 rounded-md border border-border px-2.5 py-2 sm:gap-3 sm:px-3 sm:py-2.5"
             >
               {item.complete ? (
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 sm:h-4 sm:w-4" />
               ) : item.pending ? (
-                <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+                <Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-600 sm:h-4 sm:w-4" />
               ) : (
-                <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <Circle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
               )}
-              <div>
-                <p className="text-sm font-medium">{item.label}</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="min-w-0">
+                <p className="text-xs font-medium sm:text-sm">{item.label}</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
                   {item.complete
                     ? "Completed."
                     : item.pending
@@ -226,11 +226,11 @@ export function VerificationPromptDialog() {
           ))}
         </ul>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={dismissDialog}>
+        <DialogFooter className="gap-2 pt-1 sm:gap-0">
+          <Button type="button" variant="outline" size="sm" className="h-9 sm:h-10" onClick={dismissDialog}>
             Remind me later
           </Button>
-          <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+          <Button asChild size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700 sm:h-10">
             <Link href={continueHref ?? "/verify-email"} onClick={dismissDialog}>
               {continueLabel}
             </Link>

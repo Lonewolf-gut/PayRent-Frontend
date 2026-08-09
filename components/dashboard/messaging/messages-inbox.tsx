@@ -28,15 +28,15 @@ export function MessagesInbox({
     : "Select a conversation";
 
   return (
-    <div className="-mx-4 -mb-4 flex h-[calc(100dvh-7.5rem)] min-h-[520px] overflow-hidden border-t bg-card sm:-mx-6 sm:-mb-6 lg:mx-0 lg:mb-0 lg:h-[calc(100dvh-8.5rem)] lg:rounded-xl lg:border">
+    <div className="-mx-4 -mb-4 flex h-[calc(100dvh-7rem)] min-h-[460px] overflow-hidden border-t bg-card sm:-mx-6 sm:-mb-6 sm:h-[calc(100dvh-7.5rem)] sm:min-h-[520px] lg:mx-0 lg:mb-0 lg:h-[calc(100dvh-8.5rem)] lg:rounded-xl lg:border">
       <aside
         className={cn(
           "flex w-full flex-col border-r lg:w-[min(360px,38%)] lg:shrink-0",
           activeId ? "hidden lg:flex" : "flex"
         )}
       >
-        <div className="border-b px-4 py-3">
-          <h2 className="text-lg font-semibold">Messaging</h2>
+        <div className="border-b px-3 py-2.5 sm:px-4 sm:py-3">
+          <h2 className="text-base font-semibold sm:text-lg">Messaging</h2>
         </div>
         <MessagingListPanel
           conversations={conversations}

@@ -25,7 +25,7 @@ export function UpgradePlanPicker({
   isDark?: boolean;
 }) {
   return (
-    <div className="grid gap-4 px-4 py-6 sm:grid-cols-3 sm:px-6">
+    <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 py-4 pb-5 [scrollbar-width:none] sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-6 sm:py-6 [&::-webkit-scrollbar]:hidden">
       {CHECKOUT_PLANS.map((planId) => {
         const plan = PLAN_CATALOG[planId];
         const isCurrent = currentPlan === planId;
@@ -36,7 +36,7 @@ export function UpgradePlanPicker({
             key={planId}
             data-plan-card={isHighlight ? "highlight" : "default"}
             className={cn(
-              "flex flex-col !rounded-none border p-5",
+              "flex min-w-[min(76vw,250px)] shrink-0 snap-center flex-col !rounded-none border p-3.5 sm:min-w-0 sm:p-5",
               isHighlight
                 ? "border-emerald-600 bg-gradient-to-b from-emerald-600 to-emerald-700"
                 : isDark
@@ -66,7 +66,7 @@ export function UpgradePlanPicker({
 
             <h3
               className={cn(
-                "text-lg font-semibold",
+                "text-base font-semibold sm:text-lg",
                 isHighlight ? "text-white" : isDark ? "text-zinc-50" : "text-foreground"
               )}
             >
@@ -74,7 +74,7 @@ export function UpgradePlanPicker({
             </h3>
             <p
               className={cn(
-                "mt-1 text-sm",
+                "mt-0.5 text-xs sm:mt-1 sm:text-sm",
                 isHighlight
                   ? "text-emerald-50/90"
                   : isDark
@@ -86,7 +86,7 @@ export function UpgradePlanPicker({
             </p>
             <p
               className={cn(
-                "mt-4 text-2xl font-bold",
+                "mt-3 text-xl font-bold sm:mt-4 sm:text-2xl",
                 isHighlight ? "text-white" : isDark ? "text-zinc-50" : "text-foreground"
               )}
             >
@@ -108,12 +108,12 @@ export function UpgradePlanPicker({
               ) : null}
             </p>
 
-            <ul className="mt-4 flex-1 space-y-2">
+            <ul className="mt-3 flex-1 space-y-1.5 sm:mt-4 sm:space-y-2">
               {plan.features.slice(0, 4).map((feature) => (
                 <li
                   key={feature}
                   className={cn(
-                    "flex items-start gap-2 text-xs leading-relaxed",
+                    "flex items-start gap-1.5 text-[11px] leading-relaxed sm:gap-2 sm:text-xs",
                     isHighlight
                       ? "text-emerald-50"
                       : isDark
@@ -138,8 +138,9 @@ export function UpgradePlanPicker({
 
             <Button
               type="button"
+              size="sm"
               className={cn(
-                "mt-5 w-full !rounded-none",
+                "mt-4 w-full !rounded-none sm:mt-5",
                 isCurrent
                   ? isDark
                     ? "bg-zinc-800 text-zinc-400 hover:bg-zinc-800"

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { FINANCING_STATUS_LABELS, MANDATE_STATUS_LABELS } from "@/constants/platform";
-import Link from "next/link";
+import { FinancingRequestForm } from "@/components/financing/financing-request-form";
+import { FINANCING_STATUS_LABELS } from "@/constants/platform";
 import {
   Select,
   SelectContent,
@@ -24,7 +26,30 @@ type BankAccount = {
   isVerified: boolean;
 };
 
-export default function TenantFinancingPage() {
+type ApprovedApplication = {
+  id: string;
+  propertyId: string;
+  status: string;
+  financingRequests?: { id: string; status: string }[];
+  property?: {
+    name: string;
+    monthlyRent: number | string;
+    annualRent?: number | string | null;
+  };
+};
+
+function getDefaultFinancingAmount(property?: ApprovedApplication["property"]) {
+  if (!property) return 0;
+  const annualRent = property.annualRent ? Number(property.annualRent) : 0;
+  if (annualRent > 0) return annualRent;
+  const monthlyRent = Number(property.monthlyRent);
+  return monthlyRent > 0 ? monthlyRent * 12 : 0;
+}
+
+function FinancingPageContent() {
+  const searchParams = useSearchParams();
+  const selectedPropertyId = searchParams.get("propertyId");
+  const selectedApplicationId = searchParams.get("applicationId");
   const queryClient = useQueryClient();
   const [mandateSource, setMandateSource] = useState<"PLATFORM_GENERATED" | "SCANNED_UPLOAD">(
     "PLATFORM_GENERATED"
@@ -51,6 +76,29 @@ export default function TenantFinancingPage() {
       return json.data ?? [];
     },
   });
+
+  const { data: applications } = useQuery({
+    queryKey: ["applications"],
+    queryFn: async () => {
+      const res = await fetch("/api/applications");
+      const json = await res.json();
+      return (json.data ?? []) as ApprovedApplication[];
+    },
+  });
+
+  const eligibleApplications =
+    applications?.filter(
+      (app) =>
+        app.status === "APPROVED" &&
+        !app.financingRequests?.length &&
+        app.propertyId &&
+        app.property
+    ) ?? [];
+
+  const selectedApplication =
+    eligibleApplications.find((app) => app.id === selectedApplicationId) ??
+    eligibleApplications.find((app) => app.propertyId === selectedPropertyId) ??
+    eligibleApplications[0];
 
   const { data: installments } = useQuery({
     queryKey: ["installments"],
@@ -135,6 +183,56 @@ export default function TenantFinancingPage() {
           Track eligibility, mandate setup, lender offers, delivery, and repayments.
         </p>
       </div>
+
+      {eligibleApplications.length > 0 ? (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Submit a request</h2>
+          {selectedApplication ? (
+            <FinancingRequestForm
+              key={selectedApplication.id}
+              propertyId={selectedApplication.propertyId}
+              applicationId={selectedApplication.id}
+              propertyName={selectedApplication.property?.name ?? "Listing"}
+              defaultAmount={getDefaultFinancingAmount(selectedApplication.property)}
+              onSuccess={() => {
+                queryClient.invalidateQueries({ queryKey: ["financing"] });
+                queryClient.invalidateQueries({ queryKey: ["applications"] });
+              }}
+            />
+          ) : null}
+          {eligibleApplications.length > 1 ? (
+            <div className="flex flex-wrap gap-2">
+              {eligibleApplications.map((app) => (
+                <Button key={app.id} asChild size="sm" variant="outline">
+                  <Link
+                    href={`/dashboard/buyer/financing?propertyId=${app.propertyId}&applicationId=${app.id}`}
+                  >
+                    {app.property?.name ?? "Listing"}
+                  </Link>
+                </Button>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : !requests?.length ? (
+        <section className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+          <p>
+            To request pay-for-me financing, you need an approved property application and approved
+            financing documents.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/properties">Browse listings</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/buyer/applications">View applications</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/buyer/financing-documents">Financing documents</Link>
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Your requests</h2>
@@ -328,5 +426,13 @@ export default function TenantFinancingPage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function TenantFinancingPage() {
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Loading financing...</p>}>
+      <FinancingPageContent />
+    </Suspense>
   );
 }

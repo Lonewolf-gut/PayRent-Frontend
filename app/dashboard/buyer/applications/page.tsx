@@ -10,9 +10,16 @@ import { useMarkNavSectionSeen } from "@/hooks/use-mark-nav-section-seen";
 
 type ApplicationItem = {
   id: string;
+  propertyId: string;
   status: string;
   requestedMoveInDate?: string;
-  property?: { name: string; location: string };
+  financingRequests?: { id: string }[];
+  property?: {
+    name: string;
+    location: string;
+    monthlyRent?: number | string;
+    annualRent?: number | string | null;
+  };
   paymentMethod?: "CASH" | "FINANCING" | null;
   paymentLabel?: string | null;
 };
@@ -84,9 +91,15 @@ export default function TenantApplicationsPage() {
                   status={app.status}
                   label={APPLICATION_STATUS_LABELS[app.status]}
                 />
-                {app.status === "APPROVED" && app.paymentMethod !== "CASH" ? (
+                {app.status === "APPROVED" &&
+                app.paymentMethod !== "CASH" &&
+                !app.financingRequests?.length ? (
                   <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                    <Link href="/dashboard/buyer/financing">Request financing</Link>
+                    <Link
+                      href={`/dashboard/buyer/financing?propertyId=${app.propertyId}&applicationId=${app.id}`}
+                    >
+                      Request financing
+                    </Link>
                   </Button>
                 ) : null}
               </div>

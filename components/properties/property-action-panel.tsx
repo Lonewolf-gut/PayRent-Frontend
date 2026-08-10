@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { FinancingRequestForm } from "@/components/financing/financing-request-form";
 import { toast } from "sonner";
 
 type PropertyActionPanelProps = {
@@ -19,11 +20,16 @@ type PropertyActionPanelProps = {
   purchasePrice: number;
   walletBalance: number;
   monthlyRent: number;
+  annualRent?: number;
   propertyStatus: string;
   fullyVerified: boolean;
   financingDocsApproved: boolean;
   financingDocsPending: boolean;
-  approvedApplication?: { id: string } | null;
+  approvedApplication?: {
+    id: string;
+    propertyId?: string;
+    financingRequests?: { id: string }[];
+  } | null;
   moveInDate: string;
   setMoveInDate: (value: string) => void;
   notes: string;
@@ -43,6 +49,7 @@ export function PropertyActionPanel({
   purchasePrice,
   walletBalance,
   monthlyRent,
+  annualRent,
   propertyStatus,
   fullyVerified,
   financingDocsApproved,
@@ -210,13 +217,33 @@ export function PropertyActionPanel({
               ) : financingDocsApproved ? (
                 <div className="space-y-3">
                   <StatusBadge status="APPROVED" label="Documents approved" />
-                  <p className="text-sm text-muted-foreground">
-                    Your financing documents are approved. Continue from your dashboard to submit a
-                    pay-for-me request for this listing.
-                  </p>
-                  <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
-                    <Link href="/dashboard/buyer/financing">Open financing dashboard</Link>
-                  </Button>
+                  {approvedApplication && !approvedApplication.financingRequests?.length ? (
+                    <FinancingRequestForm
+                      propertyId={propertyId}
+                      applicationId={approvedApplication.id}
+                      propertyName={propertyName}
+                      defaultAmount={annualRent && annualRent > 0 ? annualRent : monthlyRent * 12}
+                    />
+                  ) : approvedApplication?.financingRequests?.length ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        You already submitted a pay-for-me request for this listing.
+                      </p>
+                      <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
+                        <Link href="/dashboard/buyer/financing">Track financing request</Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Your financing documents are approved. Submit an application for this
+                        property first, then return here to request pay-for-me financing.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Use the application form below to apply for this listing.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : financingDocsPending ? (
                 <div className="space-y-3">

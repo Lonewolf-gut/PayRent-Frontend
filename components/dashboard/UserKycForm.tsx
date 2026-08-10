@@ -20,14 +20,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
+import { UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import {
   EMPLOYMENT_STATUS_OPTIONS,
   getEmploymentStatusLabel,
   isEmploymentRecorded,
   requiresEmploymentDocuments,
 } from "@/lib/constants/employment-status";
-import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { toast } from "sonner";
 
 const PROFILE_COMPLETE_STATUSES = new Set([
@@ -110,13 +109,6 @@ const ID_PLACEHOLDERS: Record<DocumentType, string> = {
   VOTER_ID: "1234567890",
   PASSPORT: "G1234567",
   DRIVERS_LICENSE: "V1234567",
-};
-
-type KycDocument = {
-  id: string;
-  documentType: string;
-  fileName: string;
-  fileUrl: string;
 };
 
 export function UserKycForm({
@@ -392,13 +384,6 @@ export function UserKycForm({
   const identityVerified = Boolean(status?.kycVerified);
   const employmentVerified = Boolean(status?.employmentVerified);
   const addressVerified = Boolean(status?.addressVerified);
-  const submittedDocuments: KycDocument[] =
-    status?.kycDocuments ??
-    status?.verifications?.flatMap(
-      (v: { documents?: KycDocument[] }) => v.documents ?? []
-    ) ??
-    [];
-
   if (isLoading) {
     return <p className="text-muted-foreground">Loading verification status...</p>;
   }
@@ -1027,21 +1012,6 @@ export function UserKycForm({
                 </div>
               </div>
             )}
-
-            {submittedDocuments.length > 0 ? (
-              <div className="mt-4 space-y-2 rounded-lg border p-3">
-                <p className="text-sm font-medium">Submitted documents</p>
-                {submittedDocuments.map((doc) => (
-                  <SecureFileLink
-                    key={doc.id}
-                    request={{ scope: "kyc", documentId: doc.id }}
-                    className="block text-sm text-emerald-600 hover:underline"
-                  >
-                    {KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType}: {doc.fileName}
-                  </SecureFileLink>
-                ))}
-              </div>
-            ) : null}
 
             <Button
               className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"

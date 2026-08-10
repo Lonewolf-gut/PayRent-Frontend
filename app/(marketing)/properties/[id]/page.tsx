@@ -314,6 +314,7 @@ export default function PropertyDetailPage() {
                 purchasePrice={purchasePrice}
                 walletBalance={walletBalance}
                 monthlyRent={listPrice}
+                annualRent={property.annualRent ? Number(property.annualRent) : undefined}
                 propertyStatus={property.status}
                 fullyVerified={fullyVerified}
                 financingDocsApproved={Boolean(financingDocs?.allApproved)}

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useForm, type Resolver } from "react-hook-form";
@@ -30,7 +30,6 @@ import { PropertyAttributeFields } from "@/components/properties/property-attrib
 import {
   PropertyLocationFields,
   emptyPropertyLocation,
-  formatStructuredAddress,
   type PropertyLocationForm,
 } from "@/components/properties/property-location-fields";
 import {
@@ -39,6 +38,7 @@ import {
   parseAttributesJson,
   type PropertyAttributes,
 } from "@/lib/constants/property-listing";
+import { mergePropertyLocationFields } from "@/lib/utils/property-location";
 import {
   getCategoryForType,
   isSaleListing,
@@ -68,6 +68,26 @@ export default function LandlordPropertiesPage() {
   const [addAgentId, setAddAgentId] = useState<string | null>(null);
   const [addLocation, setAddLocation] = useState<PropertyLocationForm>(emptyPropertyLocation());
   const [editLocation, setEditLocation] = useState<PropertyLocationForm>(emptyPropertyLocation());
+  const addLocationRef = useRef(addLocation);
+  const editLocationRef = useRef(editLocation);
+  addLocationRef.current = addLocation;
+  editLocationRef.current = editLocation;
+
+  const createPropertyResolver = useCallback<Resolver<LandlordPropertyInput>>(
+    async (values, context, options) => {
+      const merged = mergePropertyLocationFields(values, addLocationRef.current);
+      return await zodResolver(propertySchema)(merged, context, options);
+    },
+    []
+  );
+
+  const editPropertyResolver = useCallback<Resolver<LandlordPropertyInput>>(
+    async (values, context, options) => {
+      const merged = mergePropertyLocationFields(values, editLocationRef.current);
+      return await zodResolver(propertySchema)(merged, context, options);
+    },
+    []
+  );
   const [addAmenities, setAddAmenities] = useState<string[]>([]);
   const [editAmenities, setEditAmenities] = useState<string[]>([]);
   const [addAttributes, setAddAttributes] = useState<PropertyAttributes>(
@@ -115,7 +135,7 @@ export default function LandlordPropertiesPage() {
   });
 
   const editForm = useForm<LandlordPropertyInput>({
-    resolver: zodResolver(propertySchema) as Resolver<LandlordPropertyInput>,
+    resolver: editPropertyResolver,
     defaultValues: {
       propertyType: "APARTMENT",
       amenities: [],
@@ -124,12 +144,52 @@ export default function LandlordPropertiesPage() {
 
   const { register: editRegister, handleSubmit: handleEditSubmit, setValue: setEditValue, watch: watchEdit, formState: { errors: editErrors } } = editForm;
   const { register: addRegister, handleSubmit: handleAddSubmit, setValue: setAddValue, watch: watchAdd, formState: { errors: addErrors } } = useForm<LandlordPropertyInput>({
-    resolver: zodResolver(propertySchema) as Resolver<LandlordPropertyInput>,
+    resolver: createPropertyResolver,
     defaultValues: {
       propertyType: "APARTMENT",
       amenities: [],
     },
   });
+
+  const syncLocationToForm = useCallback(
+    (
+      location: PropertyLocationForm,
+      setLocation: (value: PropertyLocationForm) => void,
+      setValue: typeof setAddValue
+    ) => {
+      setLocation(location);
+      const merged = mergePropertyLocationFields({} as LandlordPropertyInput, location);
+      setValue("region", merged.region);
+      setValue("city", merged.city);
+      setValue("area", merged.area);
+      setValue("street", merged.street);
+      setValue("houseNumber", merged.houseNumber);
+      setValue("digitalAddress", merged.digitalAddress);
+      setValue("landmark", merged.landmark);
+      setValue("location", merged.location);
+      if (merged.latitude !== undefined) {
+        setValue("latitude", merged.latitude);
+      }
+      if (merged.longitude !== undefined) {
+        setValue("longitude", merged.longitude);
+      }
+    },
+    []
+  );
+
+  const handleAddLocationChange = useCallback(
+    (location: PropertyLocationForm) => {
+      syncLocationToForm(location, setAddLocation, setAddValue);
+    },
+    [setAddValue, syncLocationToForm]
+  );
+
+  const handleEditLocationChange = useCallback(
+    (location: PropertyLocationForm) => {
+      syncLocationToForm(location, setEditLocation, setEditValue);
+    },
+    [setEditValue, syncLocationToForm]
+  );
 
   const addPropertyType = (watchAdd("propertyType") ?? "APARTMENT") as PropertyType;
   const editPropertyType = (watchEdit("propertyType") ?? "APARTMENT") as PropertyType;
@@ -203,24 +263,6 @@ export default function LandlordPropertiesPage() {
     setAddAmenities([]);
     setAddSurveyPlan(null);
   }, [addPropertyType]);
-
-  useEffect(() => {
-    if (addLocation.latitude) {
-      setAddValue("latitude", Number(addLocation.latitude));
-    }
-    if (addLocation.longitude) {
-      setAddValue("longitude", Number(addLocation.longitude));
-    }
-  }, [addLocation.latitude, addLocation.longitude, setAddValue]);
-
-  useEffect(() => {
-    if (editLocation.latitude) {
-      setEditValue("latitude", Number(editLocation.latitude));
-    }
-    if (editLocation.longitude) {
-      setEditValue("longitude", Number(editLocation.longitude));
-    }
-  }, [editLocation.latitude, editLocation.longitude, setEditValue]);
 
   useEffect(() => {
     if (!mapUrl) {
@@ -577,7 +619,7 @@ export default function LandlordPropertiesPage() {
                     <Label>Location details</Label>
                     <PropertyLocationFields
                       value={editLocation}
-                      onChange={setEditLocation}
+                      onChange={handleEditLocationChange}
                     />
                     {editErrors.location && (
                       <p className="text-xs text-destructive">{editErrors.location.message}</p>
@@ -780,7 +822,10 @@ export default function LandlordPropertiesPage() {
                 <>
                   <div className="sm:col-span-2 space-y-2">
                     <Label>Location details</Label>
-                    <PropertyLocationFields value={addLocation} onChange={setAddLocation} />
+                    <PropertyLocationFields
+                      value={addLocation}
+                      onChange={handleAddLocationChange}
+                    />
                     {addErrors.location && (
                       <p className="text-xs text-destructive">{addErrors.location.message}</p>
                     )}

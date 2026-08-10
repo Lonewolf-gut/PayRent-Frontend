@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { FinancingRequestForm } from "@/components/financing/financing-request-form";
+import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
 
 type PropertyActionPanelProps = {
@@ -28,6 +29,11 @@ type PropertyActionPanelProps = {
   approvedApplication?: {
     id: string;
     propertyId?: string;
+    financingRequests?: { id: string }[];
+  } | null;
+  propertyApplication?: {
+    id: string;
+    status: string;
     financingRequests?: { id: string }[];
   } | null;
   moveInDate: string;
@@ -55,6 +61,7 @@ export function PropertyActionPanel({
   financingDocsApproved,
   financingDocsPending,
   approvedApplication,
+  propertyApplication,
   moveInDate,
   setMoveInDate,
   notes,
@@ -235,13 +242,38 @@ export function PropertyActionPanel({
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-muted-foreground">
-                        Your financing documents are approved. Submit an application for this
-                        property first, then return here to request pay-for-me financing.
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Use the application form below to apply for this listing.
-                      </p>
+                      {propertyApplication && propertyApplication.status !== "APPROVED" ? (
+                        <div className="space-y-2">
+                          <StatusBadge
+                            status={propertyApplication.status}
+                            label={
+                              APPLICATION_STATUS_LABELS[propertyApplication.status] ??
+                              propertyApplication.status
+                            }
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Your property application is{" "}
+                            {APPLICATION_STATUS_LABELS[propertyApplication.status]?.toLowerCase() ??
+                              "pending"}
+                            . Pay-for-me financing unlocks once the merchant approves your
+                            application for this listing.
+                          </p>
+                          <Button className="w-full rounded-none" variant="outline" asChild>
+                            <Link href="/dashboard/buyer/applications">View application status</Link>
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-muted-foreground">
+                            Your financing documents are approved. Next, submit an application for
+                            this property below. Once the merchant approves it, you can request
+                            pay-for-me financing here.
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Financing documents and property applications are separate steps.
+                          </p>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -298,10 +330,22 @@ export function PropertyActionPanel({
               <Button
                 className="w-full rounded-none"
                 variant="outline"
-                disabled={applyMutation.isPending || !!approvedApplication}
+                disabled={
+                  applyMutation.isPending ||
+                  propertyApplication?.status === "APPROVED" ||
+                  propertyApplication?.status === "SUBMITTED" ||
+                  propertyApplication?.status === "UNDER_REVIEW"
+                }
                 onClick={() => applyMutation.mutate()}
               >
-                {approvedApplication ? "Application approved" : "Submit application"}
+                {propertyApplication?.status === "APPROVED"
+                  ? "Application approved"
+                  : propertyApplication?.status === "SUBMITTED" ||
+                      propertyApplication?.status === "UNDER_REVIEW"
+                    ? "Application pending review"
+                    : propertyApplication?.status === "REJECTED"
+                      ? "Application not approved"
+                      : "Submit application"}
               </Button>
             </CardContent>
           </Card>

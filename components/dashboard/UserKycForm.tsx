@@ -75,8 +75,10 @@ function applyStatusToForm(
   setEmploymentStatus((status.employmentStatus as EmploymentStatusValue) ?? "");
   setProfile({
     dateOfBirth: (status.dateOfBirth as string) ?? "",
-    occupation: (status.occupation as string) ?? "",
-    employerName: (status.employerName as string) ?? "",
+    occupation:
+      (status.occupation as string) ?? (status.lenderType as string) ?? "",
+    employerName:
+      (status.employerName as string) ?? (status.institutionName as string) ?? "",
     monthlyIncome:
       status.monthlyIncome != null ? String(status.monthlyIncome) : "",
     residentialAddress: (status.residentialAddress as string) ?? "",
@@ -185,21 +187,15 @@ export function UserKycForm({
         if (profile.companyTin.trim()) payload.companyTin = profile.companyTin;
       } else {
         payload.employmentStatus = employmentStatus;
-        if (profile.dateOfBirth) payload.dateOfBirth = profile.dateOfBirth;
-        if (profile.occupation.trim()) payload.occupation = profile.occupation;
-        if (profile.employerName.trim()) payload.employerName = profile.employerName;
+        payload.dateOfBirth = profile.dateOfBirth || undefined;
+        payload.occupation = profile.occupation.trim() || undefined;
+        payload.employerName = profile.employerName.trim() || undefined;
         if (profile.monthlyIncome.trim()) {
           payload.monthlyIncome = Number(profile.monthlyIncome);
         }
-        if (profile.residentialAddress.trim()) {
-          payload.residentialAddress = profile.residentialAddress;
-        }
-        if (profile.staffId.trim() && employmentStatus === "EMPLOYED") {
-          payload.staffId = profile.staffId;
-        }
-        if (profile.ssnitNumber.trim() && employmentStatus === "EMPLOYED") {
-          payload.ssnitNumber = profile.ssnitNumber;
-        }
+        payload.residentialAddress = profile.residentialAddress.trim() || undefined;
+        payload.staffId = profile.staffId.trim() || undefined;
+        payload.ssnitNumber = profile.ssnitNumber.trim() || undefined;
       }
 
       const res = await fetch("/api/kyc", {

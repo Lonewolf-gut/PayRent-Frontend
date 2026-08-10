@@ -88,6 +88,7 @@ export default function PropertyDetailPage() {
       return json.data ?? [];
     },
     enabled: session?.user?.role === "BUYER",
+    refetchOnMount: "always",
   });
 
   const chatMutation = useMutation({
@@ -133,6 +134,10 @@ export default function PropertyDetailPage() {
   const approvedApplication = applications?.find(
     (app: { propertyId: string; status: string }) =>
       app.propertyId === id && app.status === "APPROVED"
+  );
+
+  const propertyApplication = applications?.find(
+    (app: { propertyId: string }) => app.propertyId === id
   );
 
   const fullyVerified = isAccountFullyVerified(
@@ -320,6 +325,7 @@ export default function PropertyDetailPage() {
                 financingDocsApproved={Boolean(financingDocs?.allApproved)}
                 financingDocsPending={financingDocsPending}
                 approvedApplication={approvedApplication}
+                propertyApplication={propertyApplication}
                 moveInDate={moveInDate}
                 setMoveInDate={setMoveInDate}
                 notes={notes}

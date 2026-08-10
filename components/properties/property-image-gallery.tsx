@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, X, Grid3X3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
   }
 
   const active = images[activeIndex] ?? images[0];
+  const activeSrc = resolveAssetUrl(active.url);
 
   const goPrev = () => setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
   const goNext = () => setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
@@ -38,7 +40,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
       <div className="group relative aspect-video overflow-hidden rounded-lg bg-muted">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={active.url}
+          src={activeSrc}
           alt={active.alt ?? title}
           className="h-full w-full cursor-pointer object-cover transition hover:scale-[1.01]"
           onClick={() => setLightboxOpen(true)}
@@ -92,7 +94,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={img.url}
+                src={resolveAssetUrl(img.url)}
                 alt={img.alt ?? `${title} photo ${index + 1}`}
                 className="h-full w-full object-cover"
               />
@@ -156,7 +158,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.url} alt="" className="h-full w-full object-cover" />
+                  <img src={resolveAssetUrl(img.url)} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>

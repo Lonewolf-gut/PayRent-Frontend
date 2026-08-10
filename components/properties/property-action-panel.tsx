@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Wallet, CreditCard, MessageSquare, ShieldAlert } from "lucide-react";
@@ -10,7 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { FinancingRequestForm } from "@/components/financing/financing-request-form";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
 
@@ -201,13 +205,18 @@ export function PropertyActionPanel({
       {!isSale ? (
         <>
           <Card className="rounded-none">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="size-5" />
-                Request for financing
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <Accordion>
+              <AccordionItem value="financing" className="border-0">
+                <CardHeader className="pb-0">
+                  <AccordionTrigger className="py-0 hover:no-underline">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CreditCard className="size-5" />
+                      Request for financing
+                    </CardTitle>
+                  </AccordionTrigger>
+                </CardHeader>
+                <AccordionContent>
+                  <CardContent className="space-y-4 pt-4">
               {!fullyVerified ? (
                 <div className="space-y-3 border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
                   <div className="flex items-start gap-2">
@@ -225,12 +234,19 @@ export function PropertyActionPanel({
                 <div className="space-y-3">
                   <StatusBadge status="APPROVED" label="Documents approved" />
                   {approvedApplication && !approvedApplication.financingRequests?.length ? (
-                    <FinancingRequestForm
-                      propertyId={propertyId}
-                      applicationId={approvedApplication.id}
-                      propertyName={propertyName}
-                      defaultAmount={annualRent && annualRent > 0 ? annualRent : monthlyRent * 12}
-                    />
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Your application is approved. Submit your pay-for-me request from your
+                        financing dashboard.
+                      </p>
+                      <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
+                        <Link
+                          href={`/dashboard/buyer/financing?propertyId=${propertyId}&applicationId=${approvedApplication.id}`}
+                        >
+                          Submit pay-for-me request
+                        </Link>
+                      </Button>
+                    </div>
                   ) : approvedApplication?.financingRequests?.length ? (
                     <>
                       <p className="text-sm text-muted-foreground">
@@ -301,7 +317,10 @@ export function PropertyActionPanel({
                   </Button>
                 </div>
               )}
-            </CardContent>
+                  </CardContent>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </Card>
 
           <Card className="rounded-none">

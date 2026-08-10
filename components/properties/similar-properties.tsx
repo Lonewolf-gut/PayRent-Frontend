@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { isSaleListing } from "@/lib/subscription-limits";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import type { PropertyType } from "@prisma/client";
 
 type SimilarProperty = {
@@ -35,7 +36,7 @@ export function SimilarPropertiesSection({ items }: { items: SimilarProperty[] }
                 <div className="relative aspect-[4/3] bg-muted">
                   {image?.url ? (
                     <Image
-                      src={image.url}
+                      src={resolveAssetUrl(image.url)}
                       alt={image.alt ?? item.name}
                       fill
                       className="object-cover"

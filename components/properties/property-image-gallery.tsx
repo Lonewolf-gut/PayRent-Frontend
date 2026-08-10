@@ -119,7 +119,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
             </Button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={active.url}
+              src={activeSrc}
               alt={active.alt ?? title}
               className="max-h-[70vh] w-full object-contain"
             />

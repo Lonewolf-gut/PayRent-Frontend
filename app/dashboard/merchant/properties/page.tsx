@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { useSubscriptionUpgradePrompt } from "@/components/dashboard/use-subscription-upgrade-prompt";
 import { PropertyCategorySelect } from "@/components/dashboard/PropertyCategorySelect";
@@ -769,7 +770,7 @@ export default function LandlordPropertiesPage() {
                     {editingProperty.images.map((image: any) => (
                       <div key={image.id} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
                         <Image
-                          src={image.url}
+                          src={resolveAssetUrl(image.url)}
                           alt={image.alt ?? "Property image"}
                           fill
                           className="object-cover"

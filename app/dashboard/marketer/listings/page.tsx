@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 
 type Listing = {
   id: string;
@@ -64,7 +65,7 @@ export default function AgentListingsPage() {
                 <div className="relative h-20 w-28 shrink-0 overflow-hidden border bg-muted">
                   {listing.images?.[0]?.url ? (
                     <Image
-                      src={listing.images[0].url}
+                      src={resolveAssetUrl(listing.images[0].url)}
                       alt={listing.name}
                       fill
                       className="object-cover"

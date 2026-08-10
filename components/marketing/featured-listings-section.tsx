@@ -11,6 +11,7 @@ import {
   PROPERTY_TYPE_LABELS,
   type PropertyType,
 } from "@/lib/subscription-limits";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 
 function listingIcon(type: string) {
   if (type === "CAR") return Car;
@@ -93,7 +94,7 @@ export function FeaturedListingsSection() {
                   {property.images?.[0]?.url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={property.images[0].url}
+                          src={resolveAssetUrl(property.images[0].url)}
                       alt={property.name}
                       className="h-full w-full object-cover"
                     />

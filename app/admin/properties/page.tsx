@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import { toast } from "sonner";
 import {
   isSaleListing,
@@ -251,7 +252,7 @@ function PropertyReviewBody({ property }: { property: AdminPendingProperty }) {
                 <div key={image.id} className="relative overflow-hidden border border-slate-200 bg-slate-950/5">
                   <div className="aspect-[4/3] w-full">
                     <Image
-                      src={image.url}
+                      src={resolveAssetUrl(image.url)}
                       alt={image.alt ?? property.name}
                       fill
                       className="object-cover"

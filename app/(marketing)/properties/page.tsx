@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from "react";
 import { Bed, Car, MapPin, Refrigerator, Search, SlidersHorizontal } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import {
   PROPERTY_CATEGORIES,
   PROPERTY_TYPE_LABELS,
@@ -287,7 +288,7 @@ export default function PropertiesPage() {
                       {property.images?.[0]?.url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={property.images[0].url}
+                          src={resolveAssetUrl(property.images[0].url)}
                           alt={property.name}
                           className="h-full w-full object-cover"
                         />

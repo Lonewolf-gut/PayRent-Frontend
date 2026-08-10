@@ -8,6 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import {
   countUnviewedSavedProperties,
   extractSavedPropertyIds,
@@ -82,7 +83,7 @@ export default function TenantSavedPropertiesPage() {
                 {item.property.images?.[0]?.url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={item.property.images[0].url}
+                    src={resolveAssetUrl(item.property.images[0].url)}
                     alt={item.property.name}
                     className="h-full w-full object-cover"
                   />

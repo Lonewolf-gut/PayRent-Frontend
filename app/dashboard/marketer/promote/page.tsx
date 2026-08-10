@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
+import { resolveAssetUrl } from "@/lib/utils/asset-url";
 
 type BrowseListing = {
   id: string;
@@ -137,7 +138,7 @@ export default function AgentPromotePage() {
                   <div className="relative h-16 w-24 shrink-0 overflow-hidden border bg-muted">
                     {listing.images?.[0]?.url ? (
                       <Image
-                        src={listing.images[0].url}
+                        src={resolveAssetUrl(listing.images[0].url)}
                         alt={listing.name}
                         fill
                         className="object-cover"

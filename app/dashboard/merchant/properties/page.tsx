@@ -30,6 +30,7 @@ import { PropertyAttributeFields } from "@/components/properties/property-attrib
 import {
   PropertyLocationFields,
   emptyPropertyLocation,
+  formatStructuredAddress,
   type PropertyLocationForm,
 } from "@/components/properties/property-location-fields";
 import {

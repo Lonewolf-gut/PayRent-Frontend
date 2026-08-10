@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
+import { StatusBadge } from "@/components/dashboard/status-badge";
 import { useSubscriptionUpgradePrompt } from "@/components/dashboard/use-subscription-upgrade-prompt";
 import { PropertyCategorySelect } from "@/components/dashboard/PropertyCategorySelect";
 import { AgentSearchField } from "@/components/dashboard/AgentSearchField";
@@ -50,6 +51,20 @@ import type { PropertyType } from "@prisma/client";
 type LandlordPropertyInput = PropertyInput & {
   googleMapUrl?: string;
 };
+
+function isListingEditLocked(status?: string) {
+  return status === "ACTIVE" || status === "RENTED";
+}
+
+function listingStatusLabel(status: string) {
+  if (status === "ACTIVE") return "Approved";
+  if (status === "PENDING_VERIFICATION") return "Pending review";
+  if (status === "INACTIVE") return "Not approved";
+  if (status === "TRIAL_SUSPENDED") return "Hidden (trial ended)";
+  if (status === "RENTED") return "Rented";
+  if (status === "DRAFT") return "Draft";
+  return status.replace(/_/g, " ");
+}
 
 export default function LandlordPropertiesPage() {
   const { handleLimitError, upgradeDialog } = useSubscriptionUpgradePrompt();
@@ -473,18 +488,13 @@ export default function LandlordPropertiesPage() {
     await updateProperty.mutateAsync({ ...data, id: editingPropertyId });
   };
 
-  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" | "ghost" }> = {
-    DRAFT: { label: "Draft", variant: "secondary" },
-    PENDING_VERIFICATION: { label: "Pending verification", variant: "outline" },
-    ACTIVE: { label: "Active", variant: "default" },
-    RENTED: { label: "Rented", variant: "destructive" },
-    TRIAL_SUSPENDED: { label: "Hidden (trial ended)", variant: "secondary" },
-    INACTIVE: { label: "Inactive", variant: "ghost" },
-  };
-
   const editingProperty = landlordProperties?.find((property: any) => property.id === editingPropertyId);
 
   const beginEdit = (property: any) => {
+    if (isListingEditLocked(property.status)) {
+      toast.error("Approved listings cannot be edited. Contact support if you need changes.");
+      return;
+    }
     setEditingPropertyId(property.id);
     setShowForm(false);
     setEditImages([]);
@@ -559,21 +569,37 @@ export default function LandlordPropertiesPage() {
       ) : landlordProperties?.length ? (
         <div className="space-y-3">
           {landlordProperties.map((property: any) => {
-            const status = statusMap[property.status] ?? { label: property.status, variant: "default" };
+            const editLocked = isListingEditLocked(property.status);
             return (
               <div
                 key={property.id}
                 className="flex flex-col gap-2 rounded-xl bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   <span className="font-medium text-foreground">{property.name}</span>
-                  <Badge variant="secondary">
-                    {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
-                      property.propertyType}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                      {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
+                        property.propertyType}
+                    </Badge>
+                    <StatusBadge
+                      status={property.status}
+                      label={listingStatusLabel(property.status)}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => beginEdit(property)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={editLocked}
+                    title={
+                      editLocked
+                        ? "Approved listings cannot be edited"
+                        : "Edit listing"
+                    }
+                    onClick={() => beginEdit(property)}
+                  >
                     Edit
                   </Button>
                   <Button

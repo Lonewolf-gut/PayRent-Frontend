@@ -13,6 +13,7 @@ const VARIANTS: Record<string, string> = {
   FAILED: "bg-red-100 text-red-800",
   OVERDUE: "bg-orange-100 text-orange-800",
   PENDING: "bg-amber-100 text-amber-800",
+  PENDING_VERIFICATION: "bg-amber-100 text-amber-800",
   SUBMITTED: "bg-blue-100 text-blue-800",
   UNDER_REVIEW: "bg-blue-100 text-blue-800",
   MANDATE_PENDING: "bg-purple-100 text-purple-800",

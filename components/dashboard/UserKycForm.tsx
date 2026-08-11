@@ -20,6 +20,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { DocumentCaptureInput } from "@/components/shared/document-capture-input";
 import { UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import {
   EMPLOYMENT_STATUS_OPTIONS,
@@ -148,9 +149,11 @@ export function UserKycForm({
   const [companyRegistration, setCompanyRegistration] = useState<File | null>(null);
   const [companyTin, setCompanyTin] = useState<File | null>(null);
   const [ssnitDocument, setSsnitDocument] = useState<File | null>(null);
-  const [employmentLetter, setEmploymentLetter] = useState<File | null>(null);
   const [staffIdDocument, setStaffIdDocument] = useState<File | null>(null);
   const [addressProof, setAddressProof] = useState<File | null>(null);
+  const [gpsLocation, setGpsLocation] = useState<{ latitude: number; longitude: number } | null>(
+    null
+  );
   const [billType, setBillType] = useState<
     "ELECTRICITY" | "WATER" | "LANDLINE" | "INTERNET"
   >("ELECTRICITY");
@@ -233,10 +236,9 @@ export function UserKycForm({
       if (profile.occupation.trim()) {
         formData.append("occupation", profile.occupation);
       }
-      if (!employmentLetter || !staffIdDocument || !ssnitDocument) {
-        throw new Error("Employment letter, staff ID document, and SSNIT document are required.");
+      if (!staffIdDocument || !ssnitDocument) {
+        throw new Error("Staff ID card and SSNIT card are required.");
       }
-      formData.append("employmentLetter", employmentLetter);
       formData.append("staffIdDocument", staffIdDocument);
       formData.append("ssnitDocument", ssnitDocument);
 
@@ -250,7 +252,6 @@ export function UserKycForm({
     },
     onSuccess: async (json) => {
       toast.success(json.message ?? "Employment documents submitted");
-      setEmploymentLetter(null);
       setStaffIdDocument(null);
       setSsnitDocument(null);
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
@@ -276,6 +277,10 @@ export function UserKycForm({
       formData.append("address", address);
       formData.append("billType", billType);
       formData.append("addressProof", addressProof);
+      if (gpsLocation) {
+        formData.append("latitude", String(gpsLocation.latitude));
+        formData.append("longitude", String(gpsLocation.longitude));
+      }
 
       const res = await fetch("/api/kyc/address/submit", {
         method: "POST",
@@ -560,14 +565,18 @@ export function UserKycForm({
                         ? "School / course"
                         : employmentStatus === "SELF_EMPLOYED"
                           ? "Business / trade"
-                          : "Occupation"}
+                          : employmentStatus === "RETIRED"
+                            ? "Previous profession"
+                            : "Occupation"}
                     </Label>
-                    <Input
-                      value={profile.occupation}
-                      onChange={(e) =>
-                        setProfile({ ...profile, occupation: e.target.value })
-                      }
-                    />
+                    {employmentStatus !== "UNEMPLOYED" ? (
+                      <Input
+                        value={profile.occupation}
+                        onChange={(e) =>
+                          setProfile({ ...profile, occupation: e.target.value })
+                        }
+                      />
+                    ) : null}
                   </div>
                   {employmentStatus === "EMPLOYED" || employmentStatus === "SELF_EMPLOYED" ? (
                     <div>
@@ -655,7 +664,7 @@ export function UserKycForm({
                 <p className="text-base font-medium">Employment verification</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   {needsEmploymentDocuments
-                    ? "Submit your employment letter, staff ID, and SSNIT document for admin review."
+                    ? "Submit your staff ID card and SSNIT card for admin review."
                     : "Your employment status is recorded on your profile. Document upload is only required if you are employed."}
                 </p>
               </div>
@@ -678,57 +687,18 @@ export function UserKycForm({
           <AccordionContent className="px-0 pb-6">
             {needsEmploymentDocuments ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                Status: {getEmploymentStatusLabel(employmentStatus)}
-                {profile.employerName ? ` · ${profile.employerName}` : ""}
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Staff ID number</Label>
-                <Input
-                  value={profile.staffId}
-                  onChange={(e) =>
-                    setProfile({ ...profile, staffId: e.target.value })
-                  }
-                  disabled={employmentVerified || employmentPending}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>SSNIT number</Label>
-                <Input
-                  value={profile.ssnitNumber}
-                  onChange={(e) =>
-                    setProfile({ ...profile, ssnitNumber: e.target.value })
-                  }
-                  disabled={employmentVerified || employmentPending}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Employment letter</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  disabled={employmentVerified || employmentPending}
-                  onChange={(e) => setEmploymentLetter(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Staff ID document</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  disabled={employmentVerified || employmentPending}
-                  onChange={(e) => setStaffIdDocument(e.target.files?.[0] ?? null)}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>SSNIT registration document</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  disabled={employmentVerified || employmentPending}
-                  onChange={(e) => setSsnitDocument(e.target.files?.[0] ?? null)}
-                />
-              </div>
+              <DocumentCaptureInput
+                label="Staff ID card"
+                disabled={employmentVerified || employmentPending}
+                value={staffIdDocument}
+                onChange={setStaffIdDocument}
+              />
+              <DocumentCaptureInput
+                label="SSNIT card"
+                disabled={employmentVerified || employmentPending}
+                value={ssnitDocument}
+                onChange={setSsnitDocument}
+              />
               <Button
                 className="sm:col-span-2 bg-emerald-600 hover:bg-emerald-700"
                 disabled={
@@ -736,8 +706,8 @@ export function UserKycForm({
                   employmentPending ||
                   employmentMutation.isPending ||
                   !profileComplete ||
-                  !profile.staffId.trim() ||
-                  !profile.ssnitNumber.trim()
+                  !staffIdDocument ||
+                  !ssnitDocument
                 }
                 onClick={() => employmentMutation.mutate()}
               >
@@ -801,20 +771,6 @@ export function UserKycForm({
           <AccordionContent className="px-0 pb-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Label>{isCompany ? "Registered business address" : "Residential address"}</Label>
-                <Input
-                  value={
-                    isCompany ? profile.companyRegisteredAddress : profile.residentialAddress
-                  }
-                  readOnly
-                  disabled
-                  className="bg-muted/40"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Update this in the profile section above, then submit your bill here.
-                </p>
-              </div>
-              <div className="sm:col-span-2">
                 <Label>Bill type</Label>
                 <Select
                   value={billType}
@@ -836,12 +792,47 @@ export function UserKycForm({
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label>Address proof document</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
+                <Label>GPS location</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={addressVerified || addressPending}
+                    onClick={() => {
+                      if (!navigator.geolocation) {
+                        toast.error("GPS is not supported on this device.");
+                        return;
+                      }
+                      navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                          setGpsLocation({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                          });
+                          toast.success("GPS location captured");
+                        },
+                        () => toast.error("Unable to capture GPS location.")
+                      );
+                    }}
+                  >
+                    Capture GPS location
+                  </Button>
+                  {gpsLocation ? (
+                    <p className="text-xs text-muted-foreground">
+                      {gpsLocation.latitude.toFixed(6)}, {gpsLocation.longitude.toFixed(6)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No GPS location captured yet</p>
+                  )}
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <DocumentCaptureInput
+                  label="Address proof document"
                   disabled={addressVerified || addressPending}
-                  onChange={(e) => setAddressProof(e.target.files?.[0] ?? null)}
+                  value={addressProof}
+                  onChange={setAddressProof}
                 />
               </div>
               <Button
@@ -979,31 +970,27 @@ export function UserKycForm({
                     />
                   </div>
                 ) : null}
-                <div>
-                  <Label>ID front photo</Label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    disabled={identityVerified || verificationPending}
-                    onChange={(e) => setIdFront(e.target.files?.[0] ?? null)}
-                  />
-                </div>
-                <div>
-                  <Label>ID back photo</Label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    disabled={identityVerified || verificationPending}
-                    onChange={(e) => setIdBack(e.target.files?.[0] ?? null)}
-                  />
-                </div>
+                <DocumentCaptureInput
+                  label="ID front photo"
+                  accept="image/*"
+                  disabled={identityVerified || verificationPending}
+                  value={idFront}
+                  onChange={setIdFront}
+                />
+                <DocumentCaptureInput
+                  label="ID back photo"
+                  accept="image/*"
+                  disabled={identityVerified || verificationPending}
+                  value={idBack}
+                  onChange={setIdBack}
+                />
                 <div className="sm:col-span-2">
-                  <Label>Face photo (selfie)</Label>
-                  <Input
-                    type="file"
+                  <DocumentCaptureInput
+                    label="Face photo (selfie)"
                     accept="image/*"
                     disabled={identityVerified || verificationPending}
-                    onChange={(e) => setFacePhoto(e.target.files?.[0] ?? null)}
+                    value={facePhoto}
+                    onChange={setFacePhoto}
                   />
                 </div>
               </div>

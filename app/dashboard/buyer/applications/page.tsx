@@ -12,6 +12,8 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { useMarkNavSectionSeen } from "@/hooks/use-mark-nav-section-seen";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { FinancingRequestDialog } from "@/components/financing/financing-request-dialog";
+import { FinancingProgressSteps } from "@/components/financing/financing-progress-steps";
 
 type ApplicationDocument = {
   id: string;
@@ -24,7 +26,7 @@ type ApplicationItem = {
   status: string;
   decisionReason?: string | null;
   requestedMoveInDate?: string;
-  financingRequests?: { id: string }[];
+  financingRequests?: { id: string; status: string }[];
   documents?: ApplicationDocument[];
   property?: {
     name: string;
@@ -167,6 +169,12 @@ function ClarificationResponseForm({ application }: { application: ApplicationIt
 
 export default function TenantApplicationsPage() {
   const queryClient = useQueryClient();
+  const [financingDialog, setFinancingDialog] = useState<{
+    propertyId: string;
+    applicationId: string;
+    propertyName: string;
+    defaultAmount: number;
+  } | null>(null);
 
   const { data: applications, isLoading } = useQuery({
     queryKey: ["applications"],
@@ -233,16 +241,30 @@ export default function TenantApplicationsPage() {
                   {app.status === "APPROVED" &&
                   app.paymentMethod !== "CASH" &&
                   !app.financingRequests?.length ? (
-                    <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                      <Link
-                        href={`/dashboard/buyer/financing?propertyId=${app.propertyId}&applicationId=${app.id}`}
-                      >
-                        Request financing
-                      </Link>
+                    <Button
+                      size="sm"
+                      className="bg-amber-500 hover:bg-amber-600"
+                      onClick={() =>
+                        setFinancingDialog({
+                          propertyId: app.propertyId,
+                          applicationId: app.id,
+                          propertyName: app.property?.name ?? "Listing",
+                          defaultAmount:
+                            app.property?.annualRent && Number(app.property.annualRent) > 0
+                              ? Number(app.property.annualRent)
+                              : Number(app.property?.monthlyRent ?? 0) * 12,
+                        })
+                      }
+                    >
+                      Request financing
                     </Button>
                   ) : null}
                 </div>
               </div>
+
+              {app.financingRequests?.[0] ? (
+                <FinancingProgressSteps status={app.financingRequests[0].status} />
+              ) : null}
 
               {app.status === "CLARIFICATION_REQUIRED" ? (
                 <ClarificationResponseForm application={app} />
@@ -251,6 +273,19 @@ export default function TenantApplicationsPage() {
           ))}
         </ul>
       )}
+
+      {financingDialog ? (
+        <FinancingRequestDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setFinancingDialog(null);
+          }}
+          propertyId={financingDialog.propertyId}
+          applicationId={financingDialog.applicationId}
+          propertyName={financingDialog.propertyName}
+          defaultAmount={financingDialog.defaultAmount}
+        />
+      ) : null}
     </div>
   );
 }

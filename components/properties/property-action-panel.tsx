@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Wallet, CreditCard, MessageSquare, ShieldAlert } from "lucide-react";
@@ -9,12 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { FinancingRequestDialog } from "@/components/financing/financing-request-dialog";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
 
@@ -28,12 +24,10 @@ type PropertyActionPanelProps = {
   annualRent?: number;
   propertyStatus: string;
   fullyVerified: boolean;
-  financingDocsApproved: boolean;
-  financingDocsPending: boolean;
   approvedApplication?: {
     id: string;
     propertyId?: string;
-    financingRequests?: { id: string }[];
+    financingRequests?: { id: string; status?: string }[];
   } | null;
   propertyApplication?: {
     id: string;
@@ -62,8 +56,6 @@ export function PropertyActionPanel({
   annualRent,
   propertyStatus,
   fullyVerified,
-  financingDocsApproved,
-  financingDocsPending,
   approvedApplication,
   propertyApplication,
   moveInDate,
@@ -75,6 +67,10 @@ export function PropertyActionPanel({
   contacts,
 }: PropertyActionPanelProps) {
   const router = useRouter();
+  const [financingOpen, setFinancingOpen] = useState(false);
+
+  const defaultFinancingAmount =
+    annualRent && annualRent > 0 ? annualRent : monthlyRent > 0 ? monthlyRent * 12 : 0;
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -149,6 +145,7 @@ export function PropertyActionPanel({
 
   const payAmount = isSale ? purchasePrice : monthlyRent;
   const canPay = walletBalance >= payAmount;
+  const hasFinancingRequest = Boolean(approvedApplication?.financingRequests?.length);
 
   return (
     <div className="space-y-4">
@@ -174,9 +171,7 @@ export function PropertyActionPanel({
             </p>
             <Button
               className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-              disabled={
-                isSale ? purchaseMutation.isPending : rentPaymentMutation.isPending
-              }
+              disabled={isSale ? purchaseMutation.isPending : rentPaymentMutation.isPending}
               onClick={() =>
                 isSale ? purchaseMutation.mutate() : rentPaymentMutation.mutate()
               }
@@ -190,11 +185,7 @@ export function PropertyActionPanel({
                   : "Pay now"}
             </Button>
             {!canPay ? (
-              <Button
-                variant="outline"
-                className="w-full rounded-none"
-                onClick={onDepositPrompt}
-              >
+              <Button variant="outline" className="w-full rounded-none" onClick={onDepositPrompt}>
                 Deposit funds
               </Button>
             ) : null}
@@ -204,123 +195,73 @@ export function PropertyActionPanel({
 
       {!isSale ? (
         <>
-          <Card className="rounded-none">
-            <Accordion>
-              <AccordionItem value="financing" className="border-0">
-                <CardHeader className="pb-0">
-                  <AccordionTrigger className="py-0 hover:no-underline">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <CreditCard className="size-5" />
-                      Request for financing
-                    </CardTitle>
-                  </AccordionTrigger>
-                </CardHeader>
-                <AccordionContent>
-                  <CardContent className="space-y-4 pt-4">
+          <Card className="rounded-none border-amber-500/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CreditCard className="size-5 text-amber-600" />
+                Request for financing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {!fullyVerified ? (
                 <div className="space-y-3 border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
                   <div className="flex items-start gap-2">
                     <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                     <p className="text-foreground">
-                      Your account must be fully verified before you can request financing.
-                      Complete phone, profile, identity, and bank verification on your dashboard.
+                      Complete verification before requesting pay-for-me financing.
                     </p>
                   </div>
                   <Button className="w-full rounded-none" asChild>
                     <Link href="/dashboard/buyer/kyc">Complete verification</Link>
                   </Button>
                 </div>
-              ) : financingDocsApproved ? (
+              ) : hasFinancingRequest ? (
                 <div className="space-y-3">
-                  <StatusBadge status="APPROVED" label="Documents approved" />
-                  {approvedApplication && !approvedApplication.financingRequests?.length ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Your application is approved. Submit your pay-for-me request from your
-                        financing dashboard.
-                      </p>
-                      <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
-                        <Link
-                          href={`/dashboard/buyer/financing?propertyId=${propertyId}&applicationId=${approvedApplication.id}`}
-                        >
-                          Submit pay-for-me request
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : approvedApplication?.financingRequests?.length ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        You already submitted a pay-for-me request for this listing.
-                      </p>
-                      <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
-                        <Link href="/dashboard/buyer/financing">Track financing request</Link>
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      {propertyApplication && propertyApplication.status !== "APPROVED" ? (
-                        <div className="space-y-2">
-                          <StatusBadge
-                            status={propertyApplication.status}
-                            label={
-                              APPLICATION_STATUS_LABELS[propertyApplication.status] ??
-                              propertyApplication.status
-                            }
-                          />
-                          <p className="text-sm text-muted-foreground">
-                            Your property application is{" "}
-                            {APPLICATION_STATUS_LABELS[propertyApplication.status]?.toLowerCase() ??
-                              "pending"}
-                            . Pay-for-me financing unlocks once the merchant approves your
-                            application for this listing.
-                          </p>
-                          <Button className="w-full rounded-none" variant="outline" asChild>
-                            <Link href="/dashboard/buyer/applications">View application status</Link>
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-sm text-muted-foreground">
-                            Your financing documents are approved. Next, submit an application for
-                            this property below. Once the merchant approves it, you can request
-                            pay-for-me financing here.
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Financing documents and property applications are separate steps.
-                          </p>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              ) : financingDocsPending ? (
-                <div className="space-y-3">
-                  <StatusBadge status="PENDING" label="Documents under review" />
+                  <StatusBadge status="APPROVED" label="Request submitted" />
                   <p className="text-sm text-muted-foreground">
-                    Your documents have been sent for review. We will notify you when you can
-                    continue with a financing request.
+                    Track admin, merchant, and lender approval from your applications dashboard.
+                  </p>
+                  <Button className="w-full rounded-none bg-amber-500 hover:bg-amber-600" asChild>
+                    <Link href="/dashboard/buyer/applications">View progress</Link>
+                  </Button>
+                </div>
+              ) : approvedApplication ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Your application is approved. Request pay-for-me financing for this listing.
+                  </p>
+                  <Button
+                    className="w-full rounded-none bg-amber-500 hover:bg-amber-600"
+                    onClick={() => setFinancingOpen(true)}
+                  >
+                    Request financing
+                  </Button>
+                </div>
+              ) : propertyApplication && propertyApplication.status !== "APPROVED" ? (
+                <div className="space-y-2">
+                  <StatusBadge
+                    status={propertyApplication.status}
+                    label={
+                      APPLICATION_STATUS_LABELS[propertyApplication.status] ??
+                      propertyApplication.status
+                    }
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Financing unlocks once the merchant approves your application for this listing.
                   </p>
                   <Button className="w-full rounded-none" variant="outline" asChild>
-                    <Link href="/dashboard/buyer/financing-documents">View document status</Link>
+                    <Link href="/dashboard/buyer/applications">View application status</Link>
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Need help paying upfront? Upload your financing documents on your dashboard to
-                    request Pay for Rent for this listing.
+                    Submit an application for this property first. Once approved, you can request
+                    pay-for-me financing here.
                   </p>
-                  <Button className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700" asChild>
-                    <Link href="/dashboard/buyer/financing-documents">
-                      Request for financing
-                    </Link>
-                  </Button>
                 </div>
               )}
-                  </CardContent>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+            </CardContent>
           </Card>
 
           <Card className="rounded-none">
@@ -384,9 +325,7 @@ export function PropertyActionPanel({
               <Button
                 variant="outline"
                 className="w-full rounded-none justify-start"
-                onClick={() =>
-                  onChat(contacts.landlord!.userId, contacts.landlord!.name)
-                }
+                onClick={() => onChat(contacts.landlord!.userId, contacts.landlord!.name)}
               >
                 Chat with merchant
               </Button>
@@ -403,6 +342,15 @@ export function PropertyActionPanel({
           </CardContent>
         </Card>
       )}
+
+      <FinancingRequestDialog
+        open={financingOpen}
+        onOpenChange={setFinancingOpen}
+        propertyId={propertyId}
+        applicationId={approvedApplication?.id}
+        propertyName={propertyName}
+        defaultAmount={defaultFinancingAmount}
+      />
     </div>
   );
 }

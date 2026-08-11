@@ -70,16 +70,6 @@ export default function PropertyDetailPage() {
     enabled: session?.user?.role === "BUYER",
   });
 
-  const { data: financingDocs } = useQuery({
-    queryKey: ["tenant-financing-docs"],
-    queryFn: async () => {
-      const res = await fetch("/api/buyer/financing-documents");
-      const json = await res.json();
-      return json.data;
-    },
-    enabled: session?.user?.role === "BUYER",
-  });
-
   const { data: applications } = useQuery({
     queryKey: ["applications"],
     queryFn: async () => {
@@ -144,11 +134,6 @@ export default function PropertyDetailPage() {
     kycStatus,
     Boolean(session?.user?.emailVerified ?? kycStatus?.emailVerified),
     Boolean(session?.user?.phoneVerified ?? kycStatus?.phoneVerified)
-  );
-  const financingDocsPending = Boolean(
-    financingDocs?.documents?.some(
-      (doc: { status: string }) => doc.status === "PENDING"
-    ) && !financingDocs?.allApproved
   );
 
   const displayAgent = property.contacts?.agent ?? property.agent;
@@ -322,8 +307,6 @@ export default function PropertyDetailPage() {
                 annualRent={property.annualRent ? Number(property.annualRent) : undefined}
                 propertyStatus={property.status}
                 fullyVerified={fullyVerified}
-                financingDocsApproved={Boolean(financingDocs?.allApproved)}
-                financingDocsPending={financingDocsPending}
                 approvedApplication={approvedApplication}
                 propertyApplication={propertyApplication}
                 moveInDate={moveInDate}

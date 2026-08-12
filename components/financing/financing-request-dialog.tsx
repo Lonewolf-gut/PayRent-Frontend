@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,10 @@ import { DocumentCaptureInput } from "@/components/shared/document-capture-input
 import { toast } from "sonner";
 
 const REPAYMENT_OPTIONS = [3, 6, 12, 18, 24, 30, 36, 42, 48] as const;
+const BANK_STATEMENT_PERIODS = [
+  { value: "6", label: "6 months" },
+  { value: "12", label: "1 year" },
+] as const;
 
 type FinancingRequestDialogProps = {
   open: boolean;
@@ -49,8 +53,20 @@ export function FinancingRequestDialog({
     defaultAmount > 0 ? String(defaultAmount) : ""
   );
   const [durationMonths, setDurationMonths] = useState("12");
+  const [bankStatementPeriod, setBankStatementPeriod] = useState("6");
   const [payslip, setPayslip] = useState<File | null>(null);
+  const [bankStatement, setBankStatement] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setRequestedAmount(defaultAmount > 0 ? String(defaultAmount) : "");
+    setDurationMonths("12");
+    setBankStatementPeriod("6");
+    setPayslip(null);
+    setBankStatement(null);
+    setConsent(false);
+  }, [open, defaultAmount]);
 
   const { data: kyc } = useQuery({
     queryKey: ["kyc-status"],
@@ -74,6 +90,20 @@ export function FinancingRequestDialog({
   const verifiedBank = kyc?.bankAccounts?.find((account) => account.isVerified);
   const accountHolderName = kyc?.fullName ?? kyc?.contactName ?? "Your name";
 
+  const uploadFinancingDocument = async (file: File, documentType: string) => {
+    const formData = new FormData();
+    formData.append("document", file);
+    formData.append("documentType", documentType);
+    const res = await fetch("/api/buyer/financing-documents", {
+      method: "POST",
+      body: formData,
+    });
+    const json = await res.json();
+    if (!json.success) {
+      throw new Error(json.message ?? `Unable to upload ${documentType.toLowerCase()}.`);
+    }
+  };
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       const amount = Number(requestedAmount);
@@ -87,6 +117,9 @@ export function FinancingRequestDialog({
       if (!payslip) {
         throw new Error("Upload your payslip to continue.");
       }
+      if (!bankStatement) {
+        throw new Error("Upload your bank statement to continue.");
+      }
       if (!verifiedBank) {
         throw new Error("Add and verify a bank account in Settings before requesting financing.");
       }
@@ -94,17 +127,8 @@ export function FinancingRequestDialog({
         throw new Error("You must consent to data processing to continue.");
       }
 
-      const payslipForm = new FormData();
-      payslipForm.append("document", payslip);
-      payslipForm.append("documentType", "PAYSLIP");
-      const payslipRes = await fetch("/api/buyer/financing-documents", {
-        method: "POST",
-        body: payslipForm,
-      });
-      const payslipJson = await payslipRes.json();
-      if (!payslipJson.success) {
-        throw new Error(payslipJson.message ?? "Unable to upload payslip.");
-      }
+      await uploadFinancingDocument(payslip, "PAYSLIP");
+      await uploadFinancingDocument(bankStatement, "BANK_STATEMENT");
 
       const res = await fetch("/api/financing", {
         method: "POST",
@@ -114,6 +138,7 @@ export function FinancingRequestDialog({
           applicationId,
           requestedAmount: amount,
           durationMonths: duration,
+          notes: `Bank statement period: ${bankStatementPeriod} months`,
           dataProcessingConsent: true,
         }),
       });
@@ -144,8 +169,8 @@ export function FinancingRequestDialog({
         <DialogHeader>
           <DialogTitle>Request financing</DialogTitle>
           <DialogDescription>
-            Submit your pay-for-me request for {propertyName}. Your bank details are taken from
-            your profile settings.
+            Submit your pay-for-me request for {propertyName}. Upload your payslip and bank
+            statement for the account shown below.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,6 +216,29 @@ export function FinancingRequestDialog({
           </div>
 
           <DocumentCaptureInput label="Payslip" value={payslip} onChange={setPayslip} />
+
+          <div className="space-y-2">
+            <Label>Bank statement period</Label>
+            <Select value={bankStatementPeriod} onValueChange={setBankStatementPeriod}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                {BANK_STATEMENT_PERIODS.map((period) => (
+                  <SelectItem key={period.value} value={period.value}>
+                    {period.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DocumentCaptureInput
+            label="Bank statement"
+            accept="image/*,.pdf"
+            value={bankStatement}
+            onChange={setBankStatement}
+          />
 
           <label className="flex items-start gap-2 text-sm text-muted-foreground">
             <input

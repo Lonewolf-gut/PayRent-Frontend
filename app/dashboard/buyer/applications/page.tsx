@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -8,16 +8,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
+import { APPLICATION_STATUS_LABELS, FINANCING_STATUS_LABELS } from "@/constants/platform";
 import { useMarkNavSectionSeen } from "@/hooks/use-mark-nav-section-seen";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { DocumentCaptureInput } from "@/components/shared/document-capture-input";
 import { FinancingRequestDialog } from "@/components/financing/financing-request-dialog";
-import { FinancingProgressSteps } from "@/components/financing/financing-progress-steps";
+import {
+  ApplicationProgressSteps,
+  FinancingProgressSteps,
+} from "@/components/financing/financing-progress-steps";
 
 type ApplicationDocument = {
   id: string;
   fileName: string;
+};
+
+type FinancingRequestItem = {
+  id: string;
+  status: string;
+  applicationId?: string | null;
+  propertyId: string;
+  requestedAmount?: number | string;
+  durationMonths?: number;
 };
 
 type ApplicationItem = {
@@ -26,7 +40,7 @@ type ApplicationItem = {
   status: string;
   decisionReason?: string | null;
   requestedMoveInDate?: string;
-  financingRequests?: { id: string; status: string }[];
+  financingRequests?: FinancingRequestItem[];
   documents?: ApplicationDocument[];
   property?: {
     name: string;
@@ -141,14 +155,11 @@ function ClarificationResponseForm({ application }: { application: ApplicationIt
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor={`document-${application.id}`}>Upload supporting document (optional)</Label>
-        <Input
-          id={`document-${application.id}`}
-          type="file"
-          onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-        />
-      </div>
+      <DocumentCaptureInput
+        label="Supporting document"
+        value={selectedFile}
+        onChange={setSelectedFile}
+      />
 
       <Button
         size="sm"
@@ -167,6 +178,13 @@ function ClarificationResponseForm({ application }: { application: ApplicationIt
   );
 }
 
+function getDefaultFinancingAmount(property?: ApplicationItem["property"]) {
+  if (!property) return 0;
+  const annualRent = property.annualRent ? Number(property.annualRent) : 0;
+  if (annualRent > 0) return annualRent;
+  return Number(property.monthlyRent ?? 0) * 12;
+}
+
 export default function TenantApplicationsPage() {
   const queryClient = useQueryClient();
   const [financingDialog, setFinancingDialog] = useState<{
@@ -176,7 +194,7 @@ export default function TenantApplicationsPage() {
     defaultAmount: number;
   } | null>(null);
 
-  const { data: applications, isLoading } = useQuery({
+  const { data: applications, isLoading: applicationsLoading } = useQuery({
     queryKey: ["applications"],
     queryFn: async () => {
       const res = await fetch("/api/applications");
@@ -184,6 +202,29 @@ export default function TenantApplicationsPage() {
       return (json.data ?? []) as ApplicationItem[];
     },
   });
+
+  const { data: financingRequests, isLoading: financingLoading } = useQuery({
+    queryKey: ["financing"],
+    queryFn: async () => {
+      const res = await fetch("/api/financing");
+      const json = await res.json();
+      return (json.data ?? []) as FinancingRequestItem[];
+    },
+  });
+
+  const applicationsWithFinancing = useMemo(() => {
+    if (!applications) return [];
+    return applications.map((app) => {
+      const linked =
+        app.financingRequests?.length
+          ? app.financingRequests
+          : financingRequests?.filter(
+              (request) =>
+                request.applicationId === app.id || request.propertyId === app.propertyId
+            ) ?? [];
+      return { ...app, financingRequests: linked };
+    });
+  }, [applications, financingRequests]);
 
   useMarkNavSectionSeen(
     "/dashboard/buyer/applications",
@@ -196,13 +237,15 @@ export default function TenantApplicationsPage() {
     void queryClient.invalidateQueries({ queryKey: ["sidebar-badge", "/dashboard/buyer/applications"] });
   }, [applications, queryClient]);
 
+  const isLoading = applicationsLoading || financingLoading;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Property applications</h1>
+          <h1 className="text-2xl font-bold">Applications & pay-for-me</h1>
           <p className="text-muted-foreground">
-            Track your applications, payments, and financing requests.
+            Track your property applications, financing requests, and approval progress.
           </p>
         </div>
         <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
@@ -212,66 +255,97 @@ export default function TenantApplicationsPage() {
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading applications...</p>
-      ) : !applications?.length ? (
+      ) : !applicationsWithFinancing.length ? (
         <div className="rounded-none border border-border bg-card px-6 py-12 text-center text-muted-foreground">
           No applications yet. Browse properties and apply to get started.
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-none border border-border bg-card">
-          {applications.map((app) => (
-            <li key={app.id} className="px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <p className="font-medium text-foreground">{app.property?.name}</p>
-                  <p className="text-sm text-muted-foreground">{app.property?.location}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {app.requestedMoveInDate
-                      ? `Move-in: ${new Date(app.requestedMoveInDate).toLocaleDateString()}`
-                      : "Move-in date not specified"}
-                  </p>
-                  {app.paymentLabel ? (
-                    <p className="text-sm text-foreground">{app.paymentLabel}</p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge
-                    status={app.status}
-                    label={APPLICATION_STATUS_LABELS[app.status]}
-                  />
-                  {app.status === "APPROVED" &&
-                  app.paymentMethod !== "CASH" &&
-                  !app.financingRequests?.length ? (
-                    <Button
-                      size="sm"
-                      className="bg-amber-500 hover:bg-amber-600"
-                      onClick={() =>
-                        setFinancingDialog({
-                          propertyId: app.propertyId,
-                          applicationId: app.id,
-                          propertyName: app.property?.name ?? "Listing",
-                          defaultAmount:
-                            app.property?.annualRent && Number(app.property.annualRent) > 0
-                              ? Number(app.property.annualRent)
-                              : Number(app.property?.monthlyRent ?? 0) * 12,
-                        })
-                      }
-                    >
-                      Request financing
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+        <div className="space-y-4">
+          {applicationsWithFinancing.map((app) => {
+            const financing = app.financingRequests?.[0];
+            const canRequestFinancing =
+              app.status === "APPROVED" && !financing && app.paymentMethod !== "CASH";
 
-              {app.financingRequests?.[0] ? (
-                <FinancingProgressSteps status={app.financingRequests[0].status} />
-              ) : null}
+            return (
+              <Card key={app.id} className="rounded-none">
+                <CardContent className="space-y-4 pt-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-foreground">{app.property?.name}</p>
+                      <p className="text-sm text-muted-foreground">{app.property?.location}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {app.requestedMoveInDate
+                          ? `Move-in: ${new Date(app.requestedMoveInDate).toLocaleDateString()}`
+                          : "Move-in date not specified"}
+                      </p>
+                      {app.paymentLabel ? (
+                        <p className="text-sm text-foreground">{app.paymentLabel}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge
+                        status={app.status}
+                        label={APPLICATION_STATUS_LABELS[app.status]}
+                      />
+                      {financing ? (
+                        <StatusBadge
+                          status={financing.status}
+                          label={FINANCING_STATUS_LABELS[financing.status] ?? financing.status}
+                        />
+                      ) : null}
+                      {canRequestFinancing ? (
+                        <Button
+                          size="sm"
+                          className="bg-amber-500 hover:bg-amber-600"
+                          onClick={() =>
+                            setFinancingDialog({
+                              propertyId: app.propertyId,
+                              applicationId: app.id,
+                              propertyName: app.property?.name ?? "Listing",
+                              defaultAmount: getDefaultFinancingAmount(app.property),
+                            })
+                          }
+                        >
+                          Request financing
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
 
-              {app.status === "CLARIFICATION_REQUIRED" ? (
-                <ClarificationResponseForm application={app} />
-              ) : null}
-            </li>
-          ))}
-        </ul>
+                  <ApplicationProgressSteps status={app.status} />
+
+                  {financing ? (
+                    <>
+                      <FinancingProgressSteps status={financing.status} />
+                      <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                        <span>
+                          Amount: GHS {Number(financing.requestedAmount ?? 0).toLocaleString()}
+                        </span>
+                        {financing.durationMonths ? (
+                          <span>· {financing.durationMonths} months</span>
+                        ) : null}
+                      </div>
+                      {["DISBURSED", "ACTIVE", "MANDATE_ACTIVE"].includes(financing.status) ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href="/dashboard/buyer/repayments">View repayments</Link>
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : app.status === "APPROVED" ? (
+                    <p className="text-sm text-muted-foreground">
+                      Your application is approved. Request pay-for-me financing to start the
+                      admin, merchant, and lender approval steps.
+                    </p>
+                  ) : null}
+
+                  {app.status === "CLARIFICATION_REQUIRED" ? (
+                    <ClarificationResponseForm application={app} />
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {financingDialog ? (

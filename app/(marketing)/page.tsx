@@ -23,7 +23,6 @@ import { ROLE_HOW_IT_WORKS } from "@/constants/roles";
 import { LandlordAgentPricingCta } from "@/components/marketing/landlord-agent-pricing-cta";
 import { LandingFaqSection } from "@/components/marketing/landing-faq-section";
 import { PlatformFeaturesSection } from "@/components/marketing/platform-features-section";
-import { FeaturedListingsSection } from "@/components/marketing/featured-listings-section";
 import { ScrollRevealCard } from "@/components/marketing/scroll-reveal-card";
 import { StatsBar } from "@/components/marketing/stats-bar";
 import { showMerchantAgentPricing } from "@/lib/subscription/pricing-visibility";
@@ -183,8 +182,6 @@ export default function HomePage() {
       </section>
 
       <StatsBar />
-
-      <FeaturedListingsSection />
 
       <section className="bg-emerald-50 py-12 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">

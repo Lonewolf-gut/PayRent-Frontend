@@ -1,3 +1,6 @@
+import type { UserRole } from "@prisma/client";
+import { SETTINGS_ROUTES } from "@/lib/auth/permissions";
+
 export type VerificationStatusSnapshot = {
   emailVerified?: boolean;
   phoneVerified?: boolean;
@@ -60,6 +63,32 @@ export function getVerificationChecklist(status?: VerificationStatusSnapshot) {
       pending: !bankVerified && bankPending,
     },
   ] satisfies VerificationChecklistItem[];
+}
+
+export function getVerificationItemHref(
+  itemId: string,
+  role: UserRole,
+  kycRoute: string
+): string {
+  switch (itemId) {
+    case "email":
+      return "/verify-email";
+    case "phone":
+      return "/verify-phone";
+    case "profile":
+    case "identity":
+      return kycRoute;
+    case "bank":
+      return SETTINGS_ROUTES[role] ?? kycRoute;
+    default:
+      return kycRoute;
+  }
+}
+
+export function getVerificationItemDescription(item: VerificationChecklistItem) {
+  if (item.complete) return "Completed.";
+  if (item.pending) return "Submitted and awaiting review. Tap to view status.";
+  return "Required before you can use all platform features. Tap to complete.";
 }
 
 export function isAccountFullyVerified(

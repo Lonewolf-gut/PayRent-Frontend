@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useForm, type Resolver } from "react-hook-form";
@@ -22,13 +22,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
-import { resolveAssetUrl } from "@/lib/utils/asset-url";
-import { StatusBadge } from "@/components/dashboard/status-badge";
 import { useSubscriptionUpgradePrompt } from "@/components/dashboard/use-subscription-upgrade-prompt";
 import { PropertyCategorySelect } from "@/components/dashboard/PropertyCategorySelect";
 import { AgentSearchField } from "@/components/dashboard/AgentSearchField";
 import { PropertyAmenityChips } from "@/components/properties/property-amenity-chips";
 import { PropertyAttributeFields } from "@/components/properties/property-attribute-fields";
+import { ListingPhotoUploadGrid } from "@/components/properties/listing-photo-upload-grid";
 import {
   PropertyLocationFields,
   emptyPropertyLocation,
@@ -40,7 +39,6 @@ import {
   parseAttributesJson,
   type PropertyAttributes,
 } from "@/lib/constants/property-listing";
-import { mergePropertyLocationFields } from "@/lib/utils/property-location";
 import {
   getCategoryForType,
   isSaleListing,
@@ -52,20 +50,6 @@ import type { PropertyType } from "@prisma/client";
 type LandlordPropertyInput = PropertyInput & {
   googleMapUrl?: string;
 };
-
-function isListingEditLocked(status?: string) {
-  return status === "ACTIVE" || status === "RENTED";
-}
-
-function listingStatusLabel(status: string) {
-  if (status === "ACTIVE") return "Approved";
-  if (status === "PENDING_VERIFICATION") return "Pending review";
-  if (status === "INACTIVE") return "Not approved";
-  if (status === "TRIAL_SUSPENDED") return "Hidden (trial ended)";
-  if (status === "RENTED") return "Rented";
-  if (status === "DRAFT") return "Draft";
-  return status.replace(/_/g, " ");
-}
 
 export default function LandlordPropertiesPage() {
   const { handleLimitError, upgradeDialog } = useSubscriptionUpgradePrompt();
@@ -84,26 +68,6 @@ export default function LandlordPropertiesPage() {
   const [addAgentId, setAddAgentId] = useState<string | null>(null);
   const [addLocation, setAddLocation] = useState<PropertyLocationForm>(emptyPropertyLocation());
   const [editLocation, setEditLocation] = useState<PropertyLocationForm>(emptyPropertyLocation());
-  const addLocationRef = useRef(addLocation);
-  const editLocationRef = useRef(editLocation);
-  addLocationRef.current = addLocation;
-  editLocationRef.current = editLocation;
-
-  const createPropertyResolver = useCallback<Resolver<LandlordPropertyInput>>(
-    async (values, context, options) => {
-      const merged = mergePropertyLocationFields(values, addLocationRef.current);
-      return await zodResolver(propertySchema)(merged, context, options);
-    },
-    []
-  );
-
-  const editPropertyResolver = useCallback<Resolver<LandlordPropertyInput>>(
-    async (values, context, options) => {
-      const merged = mergePropertyLocationFields(values, editLocationRef.current);
-      return await zodResolver(propertySchema)(merged, context, options);
-    },
-    []
-  );
   const [addAmenities, setAddAmenities] = useState<string[]>([]);
   const [editAmenities, setEditAmenities] = useState<string[]>([]);
   const [addAttributes, setAddAttributes] = useState<PropertyAttributes>(
@@ -114,6 +78,9 @@ export default function LandlordPropertiesPage() {
   );
   const [addSurveyPlan, setAddSurveyPlan] = useState<File | null>(null);
   const [editSurveyPlan, setEditSurveyPlan] = useState<File | null>(null);
+  const [removedImageIds, setRemovedImageIds] = useState<string[]>([]);
+
+  const MAX_LISTING_PHOTOS = 10;
 
   const optionalNumberField = {
     setValueAs: (value: string) => {
@@ -151,7 +118,7 @@ export default function LandlordPropertiesPage() {
   });
 
   const editForm = useForm<LandlordPropertyInput>({
-    resolver: editPropertyResolver,
+    resolver: zodResolver(propertySchema) as Resolver<LandlordPropertyInput>,
     defaultValues: {
       propertyType: "APARTMENT",
       amenities: [],
@@ -160,52 +127,12 @@ export default function LandlordPropertiesPage() {
 
   const { register: editRegister, handleSubmit: handleEditSubmit, setValue: setEditValue, watch: watchEdit, formState: { errors: editErrors } } = editForm;
   const { register: addRegister, handleSubmit: handleAddSubmit, setValue: setAddValue, watch: watchAdd, formState: { errors: addErrors } } = useForm<LandlordPropertyInput>({
-    resolver: createPropertyResolver,
+    resolver: zodResolver(propertySchema) as Resolver<LandlordPropertyInput>,
     defaultValues: {
       propertyType: "APARTMENT",
       amenities: [],
     },
   });
-
-  const syncLocationToForm = useCallback(
-    (
-      location: PropertyLocationForm,
-      setLocation: (value: PropertyLocationForm) => void,
-      setValue: typeof setAddValue
-    ) => {
-      setLocation(location);
-      const merged = mergePropertyLocationFields({} as LandlordPropertyInput, location);
-      setValue("region", merged.region);
-      setValue("city", merged.city);
-      setValue("area", merged.area);
-      setValue("street", merged.street);
-      setValue("houseNumber", merged.houseNumber);
-      setValue("digitalAddress", merged.digitalAddress);
-      setValue("landmark", merged.landmark);
-      setValue("location", merged.location);
-      if (merged.latitude !== undefined) {
-        setValue("latitude", merged.latitude);
-      }
-      if (merged.longitude !== undefined) {
-        setValue("longitude", merged.longitude);
-      }
-    },
-    []
-  );
-
-  const handleAddLocationChange = useCallback(
-    (location: PropertyLocationForm) => {
-      syncLocationToForm(location, setAddLocation, setAddValue);
-    },
-    [setAddValue, syncLocationToForm]
-  );
-
-  const handleEditLocationChange = useCallback(
-    (location: PropertyLocationForm) => {
-      syncLocationToForm(location, setEditLocation, setEditValue);
-    },
-    [setEditValue, syncLocationToForm]
-  );
 
   const addPropertyType = (watchAdd("propertyType") ?? "APARTMENT") as PropertyType;
   const editPropertyType = (watchEdit("propertyType") ?? "APARTMENT") as PropertyType;
@@ -281,6 +208,24 @@ export default function LandlordPropertiesPage() {
   }, [addPropertyType]);
 
   useEffect(() => {
+    if (addLocation.latitude) {
+      setAddValue("latitude", Number(addLocation.latitude));
+    }
+    if (addLocation.longitude) {
+      setAddValue("longitude", Number(addLocation.longitude));
+    }
+  }, [addLocation.latitude, addLocation.longitude, setAddValue]);
+
+  useEffect(() => {
+    if (editLocation.latitude) {
+      setEditValue("latitude", Number(editLocation.latitude));
+    }
+    if (editLocation.longitude) {
+      setEditValue("longitude", Number(editLocation.longitude));
+    }
+  }, [editLocation.latitude, editLocation.longitude, setEditValue]);
+
+  useEffect(() => {
     if (!mapUrl) {
       return;
     }
@@ -331,35 +276,30 @@ export default function LandlordPropertiesPage() {
     };
   }, [addImagePreviews, editImagePreviews]);
 
-  const handleImagesChange = (files: FileList | null) => {
-    if (!files) {
-      setImages([]);
+  const countListingPhotos = useCallback(
+    (existingCount: number, newCount: number) => existingCount + newCount,
+    []
+  );
+
+  const appendPhotos = (
+    incoming: File[],
+    existingVisibleCount: number,
+    currentFiles: File[],
+    setFiles: (files: File[]) => void,
+    setError: (message: string | null) => void
+  ) => {
+    const remaining = MAX_LISTING_PHOTOS - countListingPhotos(existingVisibleCount, currentFiles.length);
+    if (remaining <= 0) {
+      setError(`Maximum ${MAX_LISTING_PHOTOS} photos allowed.`);
       return;
     }
-
-    const selected = Array.from(files).slice(0, 10);
-    if (files.length > 10) {
-      setFileError("Maximum 10 images allowed.");
-    } else {
-      setFileError(null);
-    }
-    setImages(selected);
+    const next = [...currentFiles, ...incoming.slice(0, remaining)];
+    setFiles(next);
+    setError(next.length >= MAX_LISTING_PHOTOS ? `Maximum ${MAX_LISTING_PHOTOS} photos allowed.` : null);
   };
 
-  const handleEditImagesChange = (files: FileList | null) => {
-    if (!files) {
-      setEditImages([]);
-      return;
-    }
-
-    const selected = Array.from(files).slice(0, 10);
-    if (files.length > 10) {
-      setEditFileError("Maximum 10 images allowed.");
-    } else {
-      setEditFileError(null);
-    }
-    setEditImages(selected);
-  };
+  const appendAddPhotos = (incoming: File[]) =>
+    appendPhotos(incoming, 0, images, setImages, setFileError);
 
   const createProperty = useMutation({
     mutationFn: async (data: LandlordPropertyInput) => {
@@ -430,7 +370,10 @@ export default function LandlordPropertiesPage() {
       if (!isSale && editMapUrl) {
         formData.append("googleMapUrl", editMapUrl);
       }
-      editImages.slice(0, 10).forEach((file) => formData.append("images", file));
+      editImages.slice(0, MAX_LISTING_PHOTOS).forEach((file) => formData.append("images", file));
+      if (removedImageIds.length) {
+        formData.append("removeImageIds", JSON.stringify(removedImageIds));
+      }
 
       const res = await fetch(`/api/properties/${data.id}`, {
         method: "PATCH",
@@ -449,6 +392,7 @@ export default function LandlordPropertiesPage() {
       toast.success("Property listing updated");
       setEditingPropertyId(null);
       setEditImages([]);
+      setRemovedImageIds([]);
       setEditMapUrl("");
       setEditLocation(emptyPropertyLocation());
       setEditAmenities([]);
@@ -489,16 +433,55 @@ export default function LandlordPropertiesPage() {
     await updateProperty.mutateAsync({ ...data, id: editingPropertyId });
   };
 
+  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" | "ghost" }> = {
+    DRAFT: { label: "Draft", variant: "secondary" },
+    PENDING_VERIFICATION: { label: "Pending verification", variant: "outline" },
+    ACTIVE: { label: "Active", variant: "default" },
+    RENTED: { label: "Rented", variant: "destructive" },
+    TRIAL_SUSPENDED: { label: "Hidden (trial ended)", variant: "secondary" },
+    INACTIVE: { label: "Inactive", variant: "ghost" },
+  };
+
   const editingProperty = landlordProperties?.find((property: any) => property.id === editingPropertyId);
 
+  const appendEditPhotos = (incoming: File[]) => {
+    const existingVisibleCount =
+      (editingProperty?.images?.length ?? 0) - removedImageIds.length;
+    appendPhotos(incoming, existingVisibleCount, editImages, setEditImages, setEditFileError);
+  };
+
+  const replaceExistingPhoto = (imageId: string, file: File) => {
+    setRemovedImageIds((current) => (current.includes(imageId) ? current : [...current, imageId]));
+    appendEditPhotos([file]);
+  };
+
+  const replaceNewPhoto = (index: number, file: File) => {
+    setEditImages((current) => current.map((item, itemIndex) => (itemIndex === index ? file : item)));
+  };
+
+  const replaceAddPhoto = (index: number, file: File) => {
+    setImages((current) => current.map((item, itemIndex) => (itemIndex === index ? file : item)));
+  };
+
+  const removeAddPhoto = (index: number) => {
+    setImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setFileError(null);
+  };
+
+  const removeEditNewPhoto = (index: number) => {
+    setEditImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setEditFileError(null);
+  };
+
+  const removeExistingPhoto = (imageId: string) => {
+    setRemovedImageIds((current) => (current.includes(imageId) ? current : [...current, imageId]));
+  };
+
   const beginEdit = (property: any) => {
-    if (isListingEditLocked(property.status)) {
-      toast.error("Approved listings cannot be edited. Contact support if you need changes.");
-      return;
-    }
     setEditingPropertyId(property.id);
     setShowForm(false);
     setEditImages([]);
+    setRemovedImageIds([]);
     setEditMapUrl("");
     const propertyType = property.propertyType as PropertyType;
     setEditCategory(getCategoryForType(propertyType));
@@ -540,6 +523,7 @@ export default function LandlordPropertiesPage() {
   const cancelEdit = () => {
     setEditingPropertyId(null);
     setEditImages([]);
+    setRemovedImageIds([]);
     setEditMapUrl("");
     setEditLocation(emptyPropertyLocation());
     setEditAmenities([]);
@@ -570,37 +554,21 @@ export default function LandlordPropertiesPage() {
       ) : landlordProperties?.length ? (
         <div className="space-y-3">
           {landlordProperties.map((property: any) => {
-            const editLocked = isListingEditLocked(property.status);
+            const status = statusMap[property.status] ?? { label: property.status, variant: "default" };
             return (
               <div
                 key={property.id}
                 className="flex flex-col gap-2 rounded-xl bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
                   <span className="font-medium text-foreground">{property.name}</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">
-                      {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
-                        property.propertyType}
-                    </Badge>
-                    <StatusBadge
-                      status={property.status}
-                      label={listingStatusLabel(property.status)}
-                    />
-                  </div>
+                  <Badge variant="secondary">
+                    {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
+                      property.propertyType}
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={editLocked}
-                    title={
-                      editLocked
-                        ? "Approved listings cannot be edited"
-                        : "Edit listing"
-                    }
-                    onClick={() => beginEdit(property)}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => beginEdit(property)}>
                     Edit
                   </Button>
                   <Button
@@ -646,7 +614,7 @@ export default function LandlordPropertiesPage() {
                     <Label>Location details</Label>
                     <PropertyLocationFields
                       value={editLocation}
-                      onChange={handleEditLocationChange}
+                      onChange={setEditLocation}
                     />
                     {editErrors.location && (
                       <p className="text-xs text-destructive">{editErrors.location.message}</p>
@@ -765,49 +733,19 @@ export default function LandlordPropertiesPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label>Photos</Label>
-                {editingProperty.images?.length ? (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {editingProperty.images.map((image: any) => (
-                      <div key={image.id} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
-                        <Image
-                          src={resolveAssetUrl(image.url)}
-                          alt={image.alt ?? "Property image"}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">No existing images uploaded.</p>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(event) => handleEditImagesChange(event.target.files)}
-                  className="mt-2"
+                <ListingPhotoUploadGrid
+                  existingPhotos={editingProperty.images ?? []}
+                  newFiles={editImages}
+                  newPreviews={editImagePreviews}
+                  removedExistingIds={removedImageIds}
+                  onRemoveExisting={removeExistingPhoto}
+                  onReplaceExisting={replaceExistingPhoto}
+                  onAddFiles={appendEditPhotos}
+                  onRemoveNewFile={removeEditNewPhoto}
+                  onReplaceNewFile={replaceNewPhoto}
+                  helperText="Remove, replace, or add photos before updating the listing."
+                  errorMessage={editFileError}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload up to 10 additional photos to the listing.
-                </p>
-                {editFileError && <p className="text-xs text-destructive">{editFileError}</p>}
-                {editImagePreviews.length > 0 && (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {editImagePreviews.map((src, index) => (
-                      <div key={index} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
-                        <Image
-                          src={src}
-                          alt={`New property preview ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               <div className="sm:col-span-2 flex items-center gap-3">
                 <Button type="submit" disabled={updateProperty.isPending} className="bg-emerald-600 hover:bg-emerald-700">
@@ -849,10 +787,7 @@ export default function LandlordPropertiesPage() {
                 <>
                   <div className="sm:col-span-2 space-y-2">
                     <Label>Location details</Label>
-                    <PropertyLocationFields
-                      value={addLocation}
-                      onChange={handleAddLocationChange}
-                    />
+                    <PropertyLocationFields value={addLocation} onChange={setAddLocation} />
                     {addErrors.location && (
                       <p className="text-xs text-destructive">{addErrors.location.message}</p>
                     )}
@@ -968,32 +903,15 @@ export default function LandlordPropertiesPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label>Photos</Label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(event) => handleImagesChange(event.target.files)}
-                  className="mt-2"
+                <ListingPhotoUploadGrid
+                  newFiles={images}
+                  newPreviews={addImagePreviews}
+                  onAddFiles={appendAddPhotos}
+                  onRemoveNewFile={removeAddPhoto}
+                  onReplaceNewFile={replaceAddPhoto}
+                  helperText="Upload up to 10 photos for admin review. You can remove or replace any photo before submitting."
+                  errorMessage={fileError}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Upload up to 10 photos for admin review.
-                </p>
-                {fileError && <p className="text-xs text-destructive">{fileError}</p>}
-                {addImagePreviews.length > 0 && (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {addImagePreviews.map((src: string, index: number) => (
-                      <div key={index} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
-                        <Image
-                          src={src}
-                          alt={`Property preview ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               <div className="sm:col-span-2">
                 <Button

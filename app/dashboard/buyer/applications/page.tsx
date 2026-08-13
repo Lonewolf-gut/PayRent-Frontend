@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { APPLICATION_STATUS_LABELS, FINANCING_STATUS_LABELS } from "@/constants/platform";
+import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { useMarkNavSectionSeen } from "@/hooks/use-mark-nav-section-seen";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { DocumentCaptureInput } from "@/components/shared/document-capture-input";
@@ -19,6 +19,11 @@ import {
   ApplicationProgressSteps,
   FinancingProgressSteps,
 } from "@/components/financing/financing-progress-steps";
+import {
+  canEditFinancingRequest,
+  canSubmitFinancingRequest,
+  getFinancingStatusLabel,
+} from "@/lib/financing/status-flow";
 
 type ApplicationDocument = {
   id: string;
@@ -32,6 +37,7 @@ type FinancingRequestItem = {
   propertyId: string;
   requestedAmount?: number | string;
   durationMonths?: number;
+  notes?: string | null;
 };
 
 type ApplicationItem = {
@@ -50,6 +56,16 @@ type ApplicationItem = {
   };
   paymentMethod?: "CASH" | "FINANCING" | null;
   paymentLabel?: string | null;
+};
+
+type FinancingDialogState = {
+  mode: "create" | "edit";
+  propertyId: string;
+  applicationId: string;
+  propertyName: string;
+  defaultAmount: number;
+  financingRequestId?: string;
+  initialValues?: FinancingRequestItem;
 };
 
 function ClarificationResponseForm({ application }: { application: ApplicationItem }) {
@@ -187,12 +203,7 @@ function getDefaultFinancingAmount(property?: ApplicationItem["property"]) {
 
 export default function TenantApplicationsPage() {
   const queryClient = useQueryClient();
-  const [financingDialog, setFinancingDialog] = useState<{
-    propertyId: string;
-    applicationId: string;
-    propertyName: string;
-    defaultAmount: number;
-  } | null>(null);
+  const [financingDialog, setFinancingDialog] = useState<FinancingDialogState | null>(null);
 
   const { data: applications, isLoading: applicationsLoading } = useQuery({
     queryKey: ["applications"],
@@ -245,7 +256,7 @@ export default function TenantApplicationsPage() {
         <div>
           <h1 className="text-2xl font-bold">Applications & pay-for-me</h1>
           <p className="text-muted-foreground">
-            Track your property applications, financing requests, and approval progress.
+            Track property applications and financing approval progress.
           </p>
         </div>
         <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
@@ -263,12 +274,16 @@ export default function TenantApplicationsPage() {
         <div className="space-y-4">
           {applicationsWithFinancing.map((app) => {
             const financing = app.financingRequests?.[0];
-            const canRequestFinancing =
-              app.status === "APPROVED" && !financing && app.paymentMethod !== "CASH";
+            const canSubmit = canSubmitFinancingRequest(
+              app.status,
+              financing?.status,
+              app.paymentMethod
+            );
+            const canEdit = financing ? canEditFinancingRequest(financing.status) : false;
 
             return (
               <Card key={app.id} className="rounded-none">
-                <CardContent className="space-y-4 pt-6">
+                <CardContent className="space-y-5 pt-6">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                       <p className="text-lg font-semibold text-foreground">{app.property?.name}</p>
@@ -288,54 +303,80 @@ export default function TenantApplicationsPage() {
                         label={APPLICATION_STATUS_LABELS[app.status]}
                       />
                       {financing ? (
-                        <StatusBadge
-                          status={financing.status}
-                          label={FINANCING_STATUS_LABELS[financing.status] ?? financing.status}
-                        />
-                      ) : null}
-                      {canRequestFinancing ? (
-                        <Button
-                          size="sm"
-                          className="bg-amber-500 hover:bg-amber-600"
-                          onClick={() =>
-                            setFinancingDialog({
-                              propertyId: app.propertyId,
-                              applicationId: app.id,
-                              propertyName: app.property?.name ?? "Listing",
-                              defaultAmount: getDefaultFinancingAmount(app.property),
-                            })
-                          }
-                        >
-                          Request financing
-                        </Button>
+                        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-200">
+                          {getFinancingStatusLabel(financing.status)}
+                        </span>
                       ) : null}
                     </div>
                   </div>
 
-                  <ApplicationProgressSteps status={app.status} />
+                  {app.status !== "APPROVED" ? (
+                    <ApplicationProgressSteps status={app.status} />
+                  ) : null}
 
-                  {financing ? (
-                    <>
-                      <FinancingProgressSteps status={financing.status} />
-                      <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                        <span>
-                          Amount: GHS {Number(financing.requestedAmount ?? 0).toLocaleString()}
-                        </span>
-                        {financing.durationMonths ? (
-                          <span>· {financing.durationMonths} months</span>
-                        ) : null}
-                      </div>
-                      {["DISBURSED", "ACTIVE", "MANDATE_ACTIVE"].includes(financing.status) ? (
-                        <Button asChild size="sm" variant="outline">
-                          <Link href="/dashboard/buyer/repayments">View repayments</Link>
-                        </Button>
+                  {app.status === "APPROVED" ? (
+                    <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4">
+                      {financing ? (
+                        <>
+                          <FinancingProgressSteps status={financing.status} />
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                            <span>
+                              Amount: GHS {Number(financing.requestedAmount ?? 0).toLocaleString()}
+                            </span>
+                            {financing.durationMonths ? (
+                              <span>Repayment: {financing.durationMonths} months</span>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {canEdit ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setFinancingDialog({
+                                    mode: "edit",
+                                    propertyId: app.propertyId,
+                                    applicationId: app.id,
+                                    propertyName: app.property?.name ?? "Listing",
+                                    defaultAmount: getDefaultFinancingAmount(app.property),
+                                    financingRequestId: financing.id,
+                                    initialValues: financing,
+                                  })
+                                }
+                              >
+                                Edit request
+                              </Button>
+                            ) : null}
+                            {["DISBURSED", "REPAYMENT_ACTIVE", "FUNDED", "ACTIVE"].includes(
+                              financing.status
+                            ) ? (
+                              <Button asChild size="sm" variant="outline">
+                                <Link href="/dashboard/buyer/repayments">View repayments</Link>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </>
+                      ) : canSubmit ? (
+                        <div className="space-y-3">
+                          <FinancingProgressSteps status="CREATED" />
+                          <Button
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600"
+                            onClick={() =>
+                              setFinancingDialog({
+                                mode: "create",
+                                propertyId: app.propertyId,
+                                applicationId: app.id,
+                                propertyName: app.property?.name ?? "Listing",
+                                defaultAmount: getDefaultFinancingAmount(app.property),
+                              })
+                            }
+                          >
+                            Submit financing request
+                          </Button>
+                        </div>
                       ) : null}
-                    </>
-                  ) : app.status === "APPROVED" ? (
-                    <p className="text-sm text-muted-foreground">
-                      Your application is approved. Request pay-for-me financing to start the
-                      admin, merchant, and lender approval steps.
-                    </p>
+                    </div>
                   ) : null}
 
                   {app.status === "CLARIFICATION_REQUIRED" ? (
@@ -351,6 +392,7 @@ export default function TenantApplicationsPage() {
       {financingDialog ? (
         <FinancingRequestDialog
           open
+          mode={financingDialog.mode}
           onOpenChange={(open) => {
             if (!open) setFinancingDialog(null);
           }}
@@ -358,6 +400,8 @@ export default function TenantApplicationsPage() {
           applicationId={financingDialog.applicationId}
           propertyName={financingDialog.propertyName}
           defaultAmount={financingDialog.defaultAmount}
+          financingRequestId={financingDialog.financingRequestId}
+          initialValues={financingDialog.initialValues}
         />
       ) : null}
     </div>

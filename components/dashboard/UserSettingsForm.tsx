@@ -8,7 +8,13 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
@@ -20,7 +26,7 @@ import { AccountNameConfirmation } from "@/components/dashboard/account-name-con
 import { TwoFactorSetupDialog } from "@/components/dashboard/two-factor-setup-dialog";
 import { TwoFactorSetupPanel } from "@/components/dashboard/two-factor-setup-panel";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
-import { ProfileImage } from "@/components/shared/profile-image";
+import { toast } from "sonner";
 
 type BankAccount = {
   id: string;
@@ -587,9 +593,14 @@ export default function UserSettingsForm({
                 ) : null}
               </div>
 
-              {previewUrl || imageUrl ? (
-                <div className="flex items-center gap-4 rounded-none border p-3">
-                  <ProfileImage image={previewUrl || imageUrl} name={fullName} email={email} size="lg" />
+              {previewUrl ? (
+                <div className="flex items-center gap-4 rounded-lg border p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewUrl}
+                    alt="Profile preview"
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
                   <span className="text-sm text-muted-foreground">
                     Preview of your profile image.
                   </span>
@@ -719,40 +730,48 @@ export default function UserSettingsForm({
             <form onSubmit={handleAddBankAccount} className="space-y-4">
               <div className="grid gap-2">
                 <Label>Account type</Label>
-                <NativeSelect
-                  value={accountType}
-                  onChange={(e) => setAccountType(e.target.value)}
-                >
-                  <option value="BANK">Bank</option>
-                  <option value="MOMO">MoMo</option>
-                </NativeSelect>
+                <Select value={accountType} onValueChange={setAccountType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BANK">Bank</SelectItem>
+                    <SelectItem value="MOMO">MoMo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-2">
                 <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
                 {providers.length > 0 ? (
-                <NativeSelect
-                  value={bankCode}
-                  onChange={(e) => {
-                    const selected = providers.find((item) => item.code === e.target.value);
-                    setBankCode(e.target.value);
+                <Select
+                  value={bankCode || undefined}
+                  onValueChange={(value) => {
+                    const selected = providers.find((item) => item.code === value);
+                    setBankCode(value);
                     setBankName(selected?.name ?? "");
                   }}
                   disabled={providersLoading}
                 >
-                  <option value="">
-                    {providersLoading
-                      ? "Loading providers…"
-                      : accountType === "MOMO"
-                        ? "Select MTN, Telecel, or AirtelTigo"
-                        : "Select your bank"}
-                  </option>
-                  {providers.map((provider) => (
-                    <option key={provider.code} value={provider.code}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </NativeSelect>
+                  <SelectTrigger className="w-full">
+                    <SelectValue
+                      placeholder={
+                        providersLoading
+                          ? "Loading providers…"
+                          : accountType === "MOMO"
+                            ? "Select MTN, Telecel, or AirtelTigo"
+                            : "Select your bank"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providers.map((provider) => (
+                      <SelectItem key={provider.code} value={provider.code}>
+                        {provider.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 ) : (
                   <Input
                     value={bankName}
@@ -772,7 +791,6 @@ export default function UserSettingsForm({
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder={accountType === "MOMO" ? "0551234567" : "Account number"}
                   inputMode={accountType === "MOMO" ? "tel" : "numeric"}
-                  className="bg-white text-slate-900 placeholder:text-slate-400 dark:bg-white dark:text-slate-900"
                 />
               </div>
 
@@ -852,7 +870,7 @@ export default function UserSettingsForm({
             <div className="space-y-3">
               {bankAccounts.length ? (
                 bankAccounts.map((account) => (
-                  <div key={account.id} className="rounded-none border bg-background p-4">
+                  <div key={account.id} className="rounded-xl border bg-background p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{account.accountType}</p>

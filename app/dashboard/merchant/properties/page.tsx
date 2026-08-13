@@ -23,6 +23,8 @@ import {
 import { toast } from "sonner";
 import { getApiErrorMessage, readApiJson } from "@/lib/utils/api-message";
 import { useSubscriptionUpgradePrompt } from "@/components/dashboard/use-subscription-upgrade-prompt";
+import { ListingLimitsBanner } from "@/components/dashboard/ListingLimitsBanner";
+import { StatusBadge } from "@/components/dashboard/status-badge";
 import { PropertyCategorySelect } from "@/components/dashboard/PropertyCategorySelect";
 import { AgentSearchField } from "@/components/dashboard/AgentSearchField";
 import { PropertyAmenityChips } from "@/components/properties/property-amenity-chips";
@@ -50,6 +52,22 @@ import type { PropertyType } from "@prisma/client";
 type LandlordPropertyInput = PropertyInput & {
   googleMapUrl?: string;
 };
+
+function isListingEditLocked(status?: string) {
+  return status === "ACTIVE" || status === "RENTED";
+}
+
+function listingStatusLabel(status: string) {
+  if (status === "ACTIVE" || status === "RENTED") return "Approved";
+  if (status === "INACTIVE") return "Not approved";
+  return "Pending";
+}
+
+function listingStatusBadgeKey(status: string) {
+  if (status === "ACTIVE" || status === "RENTED") return "ACTIVE";
+  if (status === "INACTIVE") return "REJECTED";
+  return "PENDING";
+}
 
 export default function LandlordPropertiesPage() {
   const { handleLimitError, upgradeDialog } = useSubscriptionUpgradePrompt();
@@ -336,7 +354,7 @@ export default function LandlordPropertiesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["landlord-properties"] });
       queryClient.invalidateQueries({ queryKey: ["listing-limits"] });
-      toast.success("Property submitted for approval with attachments");
+      toast.success("Listing submitted for approval");
       setShowForm(false);
       setImages([]);
       setMapUrl("");
@@ -433,15 +451,6 @@ export default function LandlordPropertiesPage() {
     await updateProperty.mutateAsync({ ...data, id: editingPropertyId });
   };
 
-  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" | "ghost" }> = {
-    DRAFT: { label: "Draft", variant: "secondary" },
-    PENDING_VERIFICATION: { label: "Pending verification", variant: "outline" },
-    ACTIVE: { label: "Active", variant: "default" },
-    RENTED: { label: "Rented", variant: "destructive" },
-    TRIAL_SUSPENDED: { label: "Hidden (trial ended)", variant: "secondary" },
-    INACTIVE: { label: "Inactive", variant: "ghost" },
-  };
-
   const editingProperty = landlordProperties?.find((property: any) => property.id === editingPropertyId);
 
   const appendEditPhotos = (incoming: File[]) => {
@@ -478,6 +487,10 @@ export default function LandlordPropertiesPage() {
   };
 
   const beginEdit = (property: any) => {
+    if (isListingEditLocked(property.status)) {
+      toast.error("Approved listings cannot be edited. Contact support if you need changes.");
+      return;
+    }
     setEditingPropertyId(property.id);
     setShowForm(false);
     setEditImages([]);
@@ -534,11 +547,13 @@ export default function LandlordPropertiesPage() {
   return (
     <div className="space-y-6">
       {upgradeDialog}
+      <ListingLimitsBanner />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">My Properties</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            List houses, rooms, cars, and home appliances. Limits depend on your plan.
+            List as many products as you like. Approved listings appear on the marketplace only with
+            a Pro or Max subscription.
           </p>
         </div>
         <Button
@@ -554,21 +569,37 @@ export default function LandlordPropertiesPage() {
       ) : landlordProperties?.length ? (
         <div className="space-y-3">
           {landlordProperties.map((property: any) => {
-            const status = statusMap[property.status] ?? { label: property.status, variant: "default" };
+            const editLocked = isListingEditLocked(property.status);
             return (
               <div
                 key={property.id}
                 className="flex flex-col gap-2 rounded-xl bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   <span className="font-medium text-foreground">{property.name}</span>
-                  <Badge variant="secondary">
-                    {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
-                      property.propertyType}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                      {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
+                        property.propertyType}
+                    </Badge>
+                    <StatusBadge
+                      status={listingStatusBadgeKey(property.status)}
+                      label={listingStatusLabel(property.status)}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => beginEdit(property)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={editLocked}
+                    title={
+                      editLocked
+                        ? "Approved listings cannot be edited"
+                        : "Edit listing"
+                    }
+                    onClick={() => beginEdit(property)}
+                  >
                     Edit
                   </Button>
                   <Button
@@ -743,7 +774,7 @@ export default function LandlordPropertiesPage() {
                   onAddFiles={appendEditPhotos}
                   onRemoveNewFile={removeEditNewPhoto}
                   onReplaceNewFile={replaceNewPhoto}
-                  helperText="Remove, replace, or add photos before updating the listing."
+                  helperText="Upload up to 10 photos."
                   errorMessage={editFileError}
                 />
               </div>
@@ -909,7 +940,7 @@ export default function LandlordPropertiesPage() {
                   onAddFiles={appendAddPhotos}
                   onRemoveNewFile={removeAddPhoto}
                   onReplaceNewFile={replaceAddPhoto}
-                  helperText="Upload up to 10 photos for admin review. You can remove or replace any photo before submitting."
+                  helperText="Upload up to 10 photos."
                   errorMessage={fileError}
                 />
               </div>

@@ -131,17 +131,17 @@ export const ROLE_PAGE_DATA: Record<RoleSlug, RolePageData> = {
       "Complete the deal with transparent payment and settlement tracking.",
     ],
     subscription: {
-      headline: "Merchant subscription required",
+      headline: "Marketplace visibility requires Pro or Max",
       description:
-        "Merchants need an active Pro or Max subscription before listing any product. Choose a plan at /pricing to publish inventory on the marketplace.",
+        "Merchants on the free plan can list unlimited products and get them approved, but listings only appear on the public properties page after subscribing to Pro or Max.",
       features: [
-        "Pro: up to 10 homes, 5 cars, 5 appliances",
-        "Max: unlimited listings",
-        "Featured placement in search results",
+        "Free: unlimited listings, hidden from marketplace until upgraded",
+        "Pro: listings visible on the marketplace",
+        "Max: unlimited listings with featured placement",
         "Assign Affiliates to advertise listings",
       ],
       limitedAccess:
-        "Listing creation is blocked until you subscribe. Affiliates still use trial and Free tier limits separately.",
+        "Approved listings stay hidden from buyers on the free plan. Upgrade to Pro or Max to publish on the marketplace.",
     },
   },
   lender: {

@@ -6,12 +6,10 @@ import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
-import { DevVerificationCodeBox } from "@/components/auth/dev-verification-code-box";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getApiErrorMessage } from "@/lib/utils/api-message";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getVerificationDismissedKey,
@@ -22,16 +20,9 @@ import type { UserRole } from "@prisma/client";
 type PhoneVerificationDelivery = {
   phone?: string | null;
   devCode?: string | null;
-  code?: string | null;
   hasPendingCode?: boolean;
   smsConfigured?: boolean;
-  isDevelopment?: boolean;
 };
-
-function extractOtpCode(data: PhoneVerificationDelivery | null | undefined) {
-  const code = data?.devCode ?? data?.code ?? null;
-  return code && code.length >= 4 ? code : null;
-}
 
 export default function VerifyPhonePage() {
   const router = useRouter();
@@ -39,97 +30,31 @@ export default function VerifyPhonePage() {
   const { data: session, update } = useSession();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [displayCode, setDisplayCode] = useState<string | null>(null);
-  const [smsConfigured, setSmsConfigured] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(true);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [smsConfigured, setSmsConfigured] = useState(false);
 
-  const applyOtpCode = useCallback((otpCode: string | null) => {
-    if (!otpCode) return;
-    setCode(otpCode);
-    setDisplayCode(otpCode);
+  const applyDelivery = useCallback((data: PhoneVerificationDelivery | null | undefined) => {
+    if (!data) return;
+    if (data.phone) setPhone(data.phone);
+    setDevCode(data.devCode ?? null);
+    setSmsConfigured(Boolean(data.smsConfigured));
+    if (data.devCode) setCode(data.devCode);
   }, []);
-
-  const applyDelivery = useCallback(
-    (data: PhoneVerificationDelivery | null | undefined) => {
-      if (!data) return;
-      if (data.phone) setPhone(data.phone);
-      if (data.smsConfigured !== undefined) {
-        setSmsConfigured(Boolean(data.smsConfigured));
-      }
-      applyOtpCode(extractOtpCode(data));
-    },
-    [applyOtpCode]
-  );
-
-  const requestVerificationCode = useCallback(
-    async (targetPhone: string) => {
-      const res = await fetch("/api/auth/resend-phone-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: targetPhone }),
-        cache: "no-store",
-      });
-      const json = await res.json();
-      if (!json.success) {
-        throw new Error(getApiErrorMessage(json, "Could not send verification code"));
-      }
-      return json.data as PhoneVerificationDelivery;
-    },
-    []
-  );
-
-  const sendCode = useCallback(
-    async (targetPhone?: string) => {
-      const normalized = (targetPhone ?? phone).trim();
-      if (normalized.length < 10) {
-        toast.error("Enter a valid mobile number first.");
-        return;
-      }
-
-      setResending(true);
-      try {
-        const data = await requestVerificationCode(normalized);
-        applyDelivery(data);
-
-        if (!extractOtpCode(data)) {
-          toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
-        }
-      } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Could not send verification code"
-        );
-      } finally {
-        setResending(false);
-      }
-    },
-    [applyDelivery, phone, requestVerificationCode]
-  );
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadVerification() {
       try {
-        const statusRes = await fetch("/api/auth/resend-phone-verification", {
-          cache: "no-store",
-        });
+        const statusRes = await fetch("/api/auth/resend-phone-verification");
         const statusJson = await statusRes.json();
         if (cancelled) return;
 
         if (statusJson.success) {
-          const statusData = statusJson.data as PhoneVerificationDelivery;
-          applyDelivery(statusData);
-
-          const targetPhone = statusData.phone?.trim() ?? "";
-          if (!extractOtpCode(statusData) && targetPhone.length >= 10) {
-            const data = await requestVerificationCode(targetPhone);
-            if (!cancelled) applyDelivery(data);
-          }
-        } else if (statusRes.status === 401) {
-          router.replace("/login?callbackUrl=/verify-phone");
-          return;
+          applyDelivery(statusJson.data as PhoneVerificationDelivery);
         }
       } catch {
         if (!cancelled) {
@@ -149,7 +74,43 @@ export default function VerifyPhonePage() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user, applyDelivery, requestVerificationCode, router]);
+  }, [session?.user, applyDelivery]);
+
+  async function sendCode(targetPhone?: string) {
+    const normalized = (targetPhone ?? phone).trim();
+    if (normalized.length < 10) {
+      toast.error("Enter a valid mobile number first.");
+      return;
+    }
+
+    setResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-phone-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: normalized }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.errors?.[0]?.message ?? json.message ?? "Could not send code");
+        return;
+      }
+
+      const data = json.data as PhoneVerificationDelivery;
+      applyDelivery(data);
+
+      if (data.devCode) {
+        toast.success("Your verification code is shown below.");
+        return;
+      }
+
+      toast.success(`Verification code sent to ${data.phone ?? normalized}.`);
+    } catch {
+      toast.error("Could not send verification code");
+    } finally {
+      setResending(false);
+    }
+  }
 
   const onVerify = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -178,8 +139,10 @@ export default function VerifyPhonePage() {
       }
       sessionStorage.setItem(FRESH_DASHBOARD_LOGIN_KEY, "1");
 
+      const destination = role ? skipToDashboard(role) : "/";
+
       router.refresh();
-      router.push(role ? skipToDashboard(role) : "/");
+      router.push(destination);
     } catch {
       toast.error("Verification failed. Please try again.");
     } finally {
@@ -202,22 +165,23 @@ export default function VerifyPhonePage() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-slate-900">Verify your mobile number</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {displayCode
-              ? "Use the verification code below for your mobile number."
-              : "We'll send a 6-digit code by SMS to confirm your number."}
+            We&apos;ll send a 6-digit code by SMS to confirm your number.
           </p>
         </div>
 
         {bootstrapping ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">Loading your code…</p>
+          <p className="mt-6 text-center text-sm text-muted-foreground">Loading…</p>
         ) : null}
 
-        {displayCode ? (
-          <DevVerificationCodeBox
-            code={displayCode}
-            channel="phone"
-            smsConfigured={smsConfigured}
-          />
+        {!smsConfigured && devCode ? (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+              Your verification code
+            </p>
+            <p className="mt-2 font-mono text-3xl font-bold tracking-[0.35em] text-amber-950">
+              {devCode}
+            </p>
+          </div>
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">

@@ -6,31 +6,25 @@ import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
-import { DevVerificationCodeBox } from "@/components/auth/dev-verification-code-box";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { getApiErrorMessage } from "@/lib/utils/api-message";
-import { showDevVerificationCodeToast, resetDevVerificationToast } from "@/lib/utils/dev-verification-toast";
-import { fetchDevVerificationCode } from "@/lib/utils/fetch-dev-verification-code";
+import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
 import {
   FRESH_DASHBOARD_LOGIN_KEY,
   getPostEmailVerificationRoute,
-  getRouteAfterEmailSkip,
   getVerificationDismissedKey,
+  skipToDashboard,
 } from "@/lib/auth/verification-flow";
 import type { UserRole } from "@prisma/client";
 
 type VerificationDelivery = {
-  sent?: boolean;
-  deliveryMode?: "smtp" | "ethereal" | "log" | "resend" | null;
+  deliveryMode?: "smtp" | "ethereal" | "log" | null;
   previewUrl?: string | null;
   devCode?: string | null;
   realEmailExpected?: boolean;
   hasPendingCode?: boolean;
-  emailError?: string | null;
-  deliveryHint?: string | null;
 };
 
 export default function VerifyEmailPage() {
@@ -43,33 +37,21 @@ export default function VerifyEmailPage() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [realEmailExpected, setRealEmailExpected] = useState(false);
 
   const email = session?.user?.email ?? "";
 
-  const applyDelivery = useCallback(
-    async (
-      data: VerificationDelivery | null | undefined,
-      options?: { forceToast?: boolean }
-    ) => {
-      if (!data) return;
+  const applyDelivery = useCallback((data: VerificationDelivery | null | undefined) => {
+    if (!data) return;
 
-      setPreviewUrl(data.previewUrl ?? null);
+    setPreviewUrl(data.previewUrl ?? null);
+    setDevCode(data.devCode ?? null);
+    setRealEmailExpected(Boolean(data.realEmailExpected));
 
-      let otpCode = data.devCode ?? null;
-      if (!otpCode) {
-        otpCode = await fetchDevVerificationCode("EMAIL_VERIFY");
-      }
-      if (!otpCode) return;
-
-      setCode(otpCode);
-      setDevCode(otpCode);
-      showDevVerificationCodeToast(otpCode, "email", {
-        force: options?.forceToast,
-        isDevelopment: (data as { isDevelopment?: boolean }).isDevelopment,
-      });
-    },
-    []
-  );
+    if (data.devCode) {
+      setCode(data.devCode);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +64,7 @@ export default function VerifyEmailPage() {
 
         if (statusJson.success) {
           const statusData = statusJson.data as VerificationDelivery;
-          await applyDelivery(statusData);
+          applyDelivery(statusData);
 
           if (statusData.hasPendingCode || statusData.realEmailExpected) {
             setBootstrapping(false);
@@ -93,9 +75,6 @@ export default function VerifyEmailPage() {
             setBootstrapping(false);
             return;
           }
-        } else if (statusRes.status === 401) {
-          router.replace("/login?callbackUrl=/verify-email");
-          return;
         }
 
         const res = await fetch("/api/auth/resend-verification", { method: "POST" });
@@ -103,11 +82,7 @@ export default function VerifyEmailPage() {
         if (cancelled) return;
 
         if (json.success) {
-          await applyDelivery(json.data as VerificationDelivery);
-        } else if (res.status === 401) {
-          router.replace("/login?callbackUrl=/verify-email");
-        } else {
-          toast.error(getApiErrorMessage(json, "Could not load your verification code."));
+          applyDelivery(json.data as VerificationDelivery);
         }
       } catch {
         if (!cancelled) {
@@ -129,7 +104,7 @@ export default function VerifyEmailPage() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user, applyDelivery, router]);
+  }, [session?.user, applyDelivery]);
 
   const onVerify = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -178,19 +153,19 @@ export default function VerifyEmailPage() {
 
   const onResend = async () => {
     setResending(true);
-    resetDevVerificationToast("email");
     try {
       const res = await fetch("/api/auth/resend-verification", { method: "POST" });
       const json = await res.json();
       if (!json.success) {
-        toast.error(getApiErrorMessage(json, "Could not resend code"));
+        toast.error(json.errors?.[0]?.message ?? "Could not resend code");
         return;
       }
 
       const data = json.data as VerificationDelivery;
-      await applyDelivery(data, { forceToast: true });
+      applyDelivery(data);
 
       if (data.devCode) {
+        toast.success("Your verification code is shown below.");
         return;
       }
 
@@ -199,7 +174,7 @@ export default function VerifyEmailPage() {
         return;
       }
 
-      if (data.sent) {
+      if (data.realEmailExpected) {
         toast.success("A new verification code was sent to your email inbox.");
         return;
       }
@@ -227,8 +202,17 @@ export default function VerifyEmailPage() {
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-slate-900">Verify your email</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Enter the 6-digit code sent to{" "}
-            <span className="font-medium text-foreground">{email || "your email"}</span>.
+            {realEmailExpected ? (
+              <>
+                Enter the 6-digit code sent to{" "}
+                <span className="font-medium text-foreground">{email || "your email"}</span>.
+              </>
+            ) : (
+              <>
+                Local development mode — use the code below for{" "}
+                <span className="font-medium text-foreground">{email || "your email"}</span>.
+              </>
+            )}
           </p>
         </div>
 
@@ -236,8 +220,19 @@ export default function VerifyEmailPage() {
           <p className="mt-6 text-center text-sm text-muted-foreground">Loading your code…</p>
         ) : null}
 
-        {devCode ? (
-          <DevVerificationCodeBox code={devCode} channel="email" />
+        {!realEmailExpected && devCode ? (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+              Your verification code
+            </p>
+            <p className="mt-2 font-mono text-3xl font-bold tracking-[0.35em] text-amber-950">
+              {devCode}
+            </p>
+            <p className="mt-2 text-xs text-amber-900/80">
+              In local development, codes are shown here. They are not sent to your real inbox
+              unless SMTP is fully configured with a verified sending domain.
+            </p>
+          </div>
         ) : null}
 
         <form onSubmit={onVerify} className="mt-8 space-y-4">
@@ -294,16 +289,11 @@ export default function VerifyEmailPage() {
                 );
               }
               sessionStorage.setItem(FRESH_DASHBOARD_LOGIN_KEY, "1");
-              router.push(
-                getRouteAfterEmailSkip({
-                  role,
-                  phoneVerified: Boolean(session?.user?.phoneVerified),
-                })
-              );
+              router.push(skipToDashboard(role));
               router.refresh();
             }}
           >
-            {session?.user?.phoneVerified ? "Skip for now" : "Continue to phone verification"}
+            Skip for now
           </button>
         </div>
       </div>

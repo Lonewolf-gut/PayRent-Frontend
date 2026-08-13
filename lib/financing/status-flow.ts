@@ -104,3 +104,55 @@ export function canSubmitFinancingRequest(
   if (!financingStatus) return true;
   return TERMINAL_STATUSES.has(financingStatus);
 }
+
+export function getApplicationProgressSummary(status: string) {
+  const activeStep = getApplicationActiveStep(status);
+  const step = APPLICATION_FLOW_STEPS.find((item) => item.id === activeStep) ?? APPLICATION_FLOW_STEPS[0];
+  const isComplete = status === "APPROVED";
+  return {
+    step: activeStep,
+    total: APPLICATION_FLOW_STEPS.length,
+    title: step.title,
+    description: step.description,
+    label: isComplete
+      ? "Application approved"
+      : status === "REJECTED"
+        ? "Application rejected"
+        : `${step.title} — ${step.description}`,
+    inProgress: !isComplete && status !== "REJECTED",
+  };
+}
+
+export function getFinancingProgressSummary(status: string) {
+  const activeStep = getFinancingActiveStep(status);
+  const step =
+    FINANCING_FLOW_STEPS.find((item) => item.id === activeStep) ?? FINANCING_FLOW_STEPS[0];
+  return {
+    step: activeStep,
+    total: FINANCING_FLOW_STEPS.length,
+    title: step.title,
+    description: step.description,
+    label: getFinancingStatusLabel(status),
+    inProgress: activeStep > 0 && !TERMINAL_STATUSES.has(status),
+  };
+}
+
+export function getApprovedApplicationProgressSummary(
+  financingStatus?: string | null,
+  canSubmit?: boolean
+) {
+  if (financingStatus) {
+    return getFinancingProgressSummary(financingStatus);
+  }
+  if (canSubmit) {
+    return {
+      step: 1,
+      total: FINANCING_FLOW_STEPS.length,
+      title: FINANCING_FLOW_STEPS[0].title,
+      description: FINANCING_FLOW_STEPS[0].description,
+      label: "Ready to submit financing request",
+      inProgress: false,
+    };
+  }
+  return null;
+}

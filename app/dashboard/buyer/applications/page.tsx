@@ -8,22 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge } from "@/components/dashboard/status-badge";
-import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { useMarkNavSectionSeen } from "@/hooks/use-mark-nav-section-seen";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
 import { DocumentCaptureInput } from "@/components/shared/document-capture-input";
 import { FinancingRequestDialog } from "@/components/financing/financing-request-dialog";
 import {
-  ApplicationProgressSteps,
-  FinancingProgressSteps,
-} from "@/components/financing/financing-progress-steps";
-import {
-  canEditFinancingRequest,
-  canSubmitFinancingRequest,
-  getFinancingStatusLabel,
-} from "@/lib/financing/status-flow";
+  ApplicationStatusAccordion,
+  ApplicationAccordionItem,
+} from "@/components/financing/application-status-accordion";
 
 type ApplicationDocument = {
   id: string;
@@ -271,122 +263,60 @@ export default function TenantApplicationsPage() {
           No applications yet. Browse properties and apply to get started.
         </div>
       ) : (
-        <div className="space-y-4">
+        <ApplicationStatusAccordion
+          defaultOpenIds={
+            applicationsWithFinancing.length === 1 ? [applicationsWithFinancing[0].id] : []
+          }
+        >
           {applicationsWithFinancing.map((app) => {
             const financing = app.financingRequests?.[0];
-            const canSubmit = canSubmitFinancingRequest(
-              app.status,
-              financing?.status,
-              app.paymentMethod
-            );
-            const canEdit = financing ? canEditFinancingRequest(financing.status) : false;
 
             return (
-              <Card key={app.id} className="rounded-none">
-                <CardContent className="space-y-5 pt-6">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-lg font-semibold text-foreground">{app.property?.name}</p>
-                      <p className="text-sm text-muted-foreground">{app.property?.location}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {app.requestedMoveInDate
-                          ? `Move-in: ${new Date(app.requestedMoveInDate).toLocaleDateString()}`
-                          : "Move-in date not specified"}
-                      </p>
-                      {app.paymentLabel ? (
-                        <p className="text-sm text-foreground">{app.paymentLabel}</p>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusBadge
-                        status={app.status}
-                        label={APPLICATION_STATUS_LABELS[app.status]}
-                      />
-                      {financing ? (
-                        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-200">
-                          {getFinancingStatusLabel(financing.status)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {app.status !== "APPROVED" ? (
-                    <ApplicationProgressSteps status={app.status} />
-                  ) : null}
-
-                  {app.status === "APPROVED" ? (
-                    <div className="space-y-4 rounded-lg border border-border bg-muted/10 p-4">
-                      {financing ? (
-                        <>
-                          <FinancingProgressSteps status={financing.status} />
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                            <span>
-                              Amount: GHS {Number(financing.requestedAmount ?? 0).toLocaleString()}
-                            </span>
-                            {financing.durationMonths ? (
-                              <span>Repayment: {financing.durationMonths} months</span>
-                            ) : null}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {canEdit ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  setFinancingDialog({
-                                    mode: "edit",
-                                    propertyId: app.propertyId,
-                                    applicationId: app.id,
-                                    propertyName: app.property?.name ?? "Listing",
-                                    defaultAmount: getDefaultFinancingAmount(app.property),
-                                    financingRequestId: financing.id,
-                                    initialValues: financing,
-                                  })
-                                }
-                              >
-                                Edit request
-                              </Button>
-                            ) : null}
-                            {["DISBURSED", "REPAYMENT_ACTIVE", "FUNDED", "ACTIVE"].includes(
-                              financing.status
-                            ) ? (
-                              <Button asChild size="sm" variant="outline">
-                                <Link href="/dashboard/buyer/repayments">View repayments</Link>
-                              </Button>
-                            ) : null}
-                          </div>
-                        </>
-                      ) : canSubmit ? (
-                        <div className="space-y-3">
-                          <FinancingProgressSteps status="CREATED" />
-                          <Button
-                            size="sm"
-                            className="bg-amber-500 hover:bg-amber-600"
-                            onClick={() =>
-                              setFinancingDialog({
-                                mode: "create",
-                                propertyId: app.propertyId,
-                                applicationId: app.id,
-                                propertyName: app.property?.name ?? "Listing",
-                                defaultAmount: getDefaultFinancingAmount(app.property),
-                              })
-                            }
-                          >
-                            Submit financing request
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {app.status === "CLARIFICATION_REQUIRED" ? (
+              <ApplicationAccordionItem
+                key={app.id}
+                applicationId={app.id}
+                propertyName={app.property?.name}
+                propertyLocation={app.property?.location}
+                moveInLabel={
+                  app.requestedMoveInDate
+                    ? `Move-in: ${new Date(app.requestedMoveInDate).toLocaleDateString()}`
+                    : "Move-in date not specified"
+                }
+                paymentLabel={app.paymentLabel}
+                applicationStatus={app.status}
+                paymentMethod={app.paymentMethod}
+                financing={financing}
+                onSubmitFinancing={() =>
+                  setFinancingDialog({
+                    mode: "create",
+                    propertyId: app.propertyId,
+                    applicationId: app.id,
+                    propertyName: app.property?.name ?? "Listing",
+                    defaultAmount: getDefaultFinancingAmount(app.property),
+                  })
+                }
+                onEditFinancing={() =>
+                  financing
+                    ? setFinancingDialog({
+                        mode: "edit",
+                        propertyId: app.propertyId,
+                        applicationId: app.id,
+                        propertyName: app.property?.name ?? "Listing",
+                        defaultAmount: getDefaultFinancingAmount(app.property),
+                        financingRequestId: financing.id,
+                        initialValues: financing,
+                      })
+                    : undefined
+                }
+                clarificationForm={
+                  app.status === "CLARIFICATION_REQUIRED" ? (
                     <ClarificationResponseForm application={app} />
-                  ) : null}
-                </CardContent>
-              </Card>
+                  ) : undefined
+                }
+              />
             );
           })}
-        </div>
+        </ApplicationStatusAccordion>
       )}
 
       {financingDialog ? (

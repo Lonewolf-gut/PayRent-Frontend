@@ -83,7 +83,7 @@ function VerificationChecklistRow({
         href={item.href}
         onClick={onNavigate}
         className={cn(
-          "flex items-start gap-2.5 rounded-md border border-border px-2.5 py-2 transition-colors sm:gap-3 sm:px-3 sm:py-2.5",
+          "flex items-start gap-2.5 rounded-md border border-border px-4 py-2.5 transition-colors sm:gap-3 sm:px-5 sm:py-3",
           "hover:border-emerald-500/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/40"
         )}
       >
@@ -251,7 +251,7 @@ export function VerificationPromptDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="max-h-[min(46vh,320px)] space-y-2 overflow-y-auto overscroll-contain py-1 sm:space-y-2.5">
+        <ul className="max-h-[min(46vh,320px)] space-y-2 overflow-y-auto overscroll-contain px-3 py-1 sm:space-y-2.5 sm:px-4">
           {verificationItems.map((item) => (
             <VerificationChecklistRow key={item.id} item={item} onNavigate={dismissDialog} />
           ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +39,12 @@ export default function AgentPromotePage() {
   const queryClient = useQueryClient();
   const [label, setLabel] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState(preselectedPropertyId ?? "");
+
+  useEffect(() => {
+    if (preselectedPropertyId) {
+      setSelectedPropertyId(preselectedPropertyId);
+    }
+  }, [preselectedPropertyId]);
 
   const { data: browseListings, isLoading: browseLoading } = useQuery({
     queryKey: ["agent-browse-listings"],
@@ -81,6 +87,11 @@ export default function AgentPromotePage() {
   });
 
   const promotableListings = useMemo(() => myListings ?? [], [myListings]);
+
+  useEffect(() => {
+    if (preselectedPropertyId || selectedPropertyId || promotableListings.length !== 1) return;
+    setSelectedPropertyId(promotableListings[0].id);
+  }, [preselectedPropertyId, promotableListings, selectedPropertyId]);
   const promotionLimit = assignmentLimits?.limits?.total ?? 1;
   const promotionUsed = assignmentLimits?.usage.total ?? 0;
   const atPromotionLimit =
@@ -105,12 +116,17 @@ export default function AgentPromotePage() {
   });
 
   const createLinkMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (propertyId?: string) => {
+      const resolvedPropertyId = propertyId ?? selectedPropertyId;
+      if (!resolvedPropertyId) {
+        throw new Error("Select a listing before generating a promotion link.");
+      }
+
       const res = await fetch("/api/marketer/referral-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          propertyId: selectedPropertyId || undefined,
+          propertyId: resolvedPropertyId,
           label: label || undefined,
         }),
       });
@@ -190,19 +206,27 @@ export default function AgentPromotePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="property">Listing (optional)</Label>
+            <Label htmlFor="property">Listing</Label>
             <NativeSelect
               id="property"
               value={selectedPropertyId}
               onChange={(e) => setSelectedPropertyId(e.target.value)}
+              disabled={!promotableListings.length}
             >
-              <option value="">General Affiliate profile link</option>
+              <option value="">
+                {promotableListings.length
+                  ? "Select a listing"
+                  : "Claim a listing first"}
+              </option>
               {promotableListings.map((listing) => (
                 <option key={listing.id} value={listing.id}>
                   {listing.name}
                 </option>
               ))}
             </NativeSelect>
+            <p className="text-xs text-muted-foreground">
+              Promotion links open the selected listing for customers. Claim a listing above if none are available.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="label">Label (optional)</Label>
@@ -215,7 +239,7 @@ export default function AgentPromotePage() {
           </div>
           <Button
             onClick={() => createLinkMutation.mutate()}
-            disabled={createLinkMutation.isPending}
+            disabled={createLinkMutation.isPending || !selectedPropertyId}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             Generate link
@@ -244,7 +268,16 @@ export default function AgentPromotePage() {
                       <p className="text-sm text-muted-foreground">General referral link</p>
                     )}
                   </div>
-                  <Badge variant="outline">{link.clickCount} clicks</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{link.clickCount} clicks</Badge>
+                    {link.property ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={link.url} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input readOnly value={link.url} />

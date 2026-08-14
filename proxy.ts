@@ -23,6 +23,7 @@ const publicRoutes = [
   "/privacy",
   "/faq",
   "/pricing",
+  "/r",
   "/api/auth",
   "/api/properties",
   "/api/subscriptions/plans",

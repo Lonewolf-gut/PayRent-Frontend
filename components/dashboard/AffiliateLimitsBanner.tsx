@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +20,9 @@ type AssignmentLimits = {
 };
 
 export function AffiliateLimitsBanner() {
+  const { data: session } = useSession();
+  const [dismissed, setDismissed] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ["listing-limits"],
     queryFn: async () => {
@@ -26,12 +32,37 @@ export function AffiliateLimitsBanner() {
     },
   });
 
-  if (isLoading || !data || data.unlimited) return null;
+  const limit = data?.limits?.total ?? 1;
+  const used = data?.usage.total ?? 0;
+  const atLimit = Math.max(0, limit - used) === 0;
+  const dismissKey =
+    session?.user?.id && data
+      ? `affiliate-limits-banner-dismissed:${session.user.id}:${data.plan}:${used}:${limit}`
+      : null;
 
-  const limit = data.limits?.total ?? 1;
-  const used = data.usage.total;
+  useEffect(() => {
+    if (!dismissKey) {
+      setDismissed(false);
+      return;
+    }
+    setDismissed(sessionStorage.getItem(dismissKey) === "true");
+  }, [dismissKey]);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("fresh-dashboard-login") === "1") {
+      setDismissed(false);
+    }
+  }, [dismissKey]);
+
+  const dismissBanner = () => {
+    if (!dismissKey) return;
+    sessionStorage.setItem(dismissKey, "true");
+    setDismissed(true);
+  };
+
+  if (isLoading || !data || data.unlimited || dismissed) return null;
+
   const remaining = Math.max(0, limit - used);
-  const atLimit = remaining === 0;
 
   return (
     <div
@@ -41,37 +72,51 @@ export function AffiliateLimitsBanner() {
           : "mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm dark:border-border dark:bg-card"
       }
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="font-medium text-foreground">
-            {atLimit ? "Promotion limit reached" : "Affiliate promotion allowance"}
-          </p>
-          <p className="text-muted-foreground">
-            {limit === 1 ? (
-              <>
-                Free Affiliates can promote <strong>1 listing</strong> and earn commission on it.
-                {atLimit
-                  ? " Upgrade to claim or accept assignments on additional listings."
-                  : ` You have ${remaining} free promotion slot remaining.`}
-              </>
-            ) : (
-              <>
-                {used} of {limit} promoted listings used
-                {atLimit
-                  ? ". Upgrade to Max for unlimited promotion capacity."
-                  : `. ${remaining} slot${remaining === 1 ? "" : "s"} remaining.`}
-              </>
-            )}
-          </p>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-foreground">
+                {atLimit ? "Promotion limit reached" : "Affiliate promotion allowance"}
+              </p>
+              <p className="text-muted-foreground">
+                {limit === 1 ? (
+                  <>
+                    Free Affiliates can promote <strong>1 listing</strong> and earn commission on it.
+                    {atLimit
+                      ? " Upgrade to claim or accept assignments on additional listings."
+                      : ` You have ${remaining} free promotion slot remaining.`}
+                  </>
+                ) : (
+                  <>
+                    {used} of {limit} promoted listings used
+                    {atLimit
+                      ? ". Upgrade to Max for unlimited promotion capacity."
+                      : `. ${remaining} slot${remaining === 1 ? "" : "s"} remaining.`}
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">{data.plan === "PRO" ? "Pro plan" : "Free plan"}</Badge>
+              {atLimit ? (
+                <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                  <Link href="/pricing">Upgrade plan</Link>
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{data.plan === "PRO" ? "Pro plan" : "Free plan"}</Badge>
-          {atLimit ? (
-            <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-              <Link href="/pricing">Upgrade plan</Link>
-            </Button>
-          ) : null}
-        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={dismissBanner}
+          aria-label="Dismiss affiliate promotion banner"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

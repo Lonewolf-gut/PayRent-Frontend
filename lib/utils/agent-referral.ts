@@ -1,4 +1,4 @@
-import { AGENT_REFERRAL_COOKIE } from "@/lib/constants/agent-commission";
+import { AGENT_REFERRAL_COOKIE } from "@/lib/constants/agent-referral-cookie";
 
 export function parseAgentReferralCode(cookieHeader?: string | null): string | null {
   if (!cookieHeader) return null;

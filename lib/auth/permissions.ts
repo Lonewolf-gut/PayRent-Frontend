@@ -101,7 +101,7 @@ export function requireRole(
 export const DASHBOARD_ROUTES: Record<UserRole, string> = {
   BUYER: "/dashboard/buyer",
   MERCHANT: "/dashboard/merchant",
-  MARKETER: "/dashboard/marketer",
+  MARKETER: "/dashboard/marketer/listings",
   LENDER: "/dashboard/lender",
   ADMIN: "/admin",
   COMPLIANCE_OFFICER: "/compliance",
@@ -134,7 +134,7 @@ export const POST_LOGIN_ROUTES: Record<UserRole, string> = {
   BUYER: DASHBOARD_ROUTES.BUYER,
   MERCHANT: DASHBOARD_ROUTES.MERCHANT,
   MARKETER: DASHBOARD_ROUTES.MARKETER,
-  LENDER: "/dashboard/lender/opportunities",
+  LENDER: DASHBOARD_ROUTES.LENDER,
   ADMIN: DASHBOARD_ROUTES.ADMIN,
   COMPLIANCE_OFFICER: DASHBOARD_ROUTES.COMPLIANCE_OFFICER,
 };

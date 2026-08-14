@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getPostLoginRoute } from "@/lib/auth/permissions";
 import {
   ADMIN_HOME_PATH,
   COMPLIANCE_HOME_PATH,
@@ -9,6 +10,7 @@ import {
   isNonAdminDashboardPath,
   isPublicAuthPath,
 } from "@/lib/auth/route-guards";
+import type { UserRole } from "@prisma/client";
 
 const publicRoutes = [
   "/",
@@ -20,7 +22,6 @@ const publicRoutes = [
   "/terms",
   "/privacy",
   "/faq",
-  "/contact",
   "/pricing",
   "/api/auth",
   "/api/properties",
@@ -39,67 +40,21 @@ function hasAuthCookie(req: NextRequest) {
   return authCookieNames.some((name) => !!req.cookies.get(name)?.value);
 }
 
-function clearAuthCookies(response: NextResponse) {
-  for (const name of authCookieNames) {
-    response.cookies.delete(name);
-  }
-  return response;
-}
-
 export async function proxy(req: NextRequest) {
-  const authSecret = process.env.AUTH_SECRET?.trim();
-  if (!authSecret) {
-    console.error(
-      "[auth] AUTH_SECRET is missing. Run: npm run setup:env — then use the same secret in PayRent-Backend/.env"
-    );
-    return NextResponse.json(
-      {
-        error: "Server misconfigured: AUTH_SECRET is not set. Run npm run setup:env in PayRent-Frontend.",
-      },
-      { status: 500 }
-    );
-  }
-
   const { nextUrl } = req;
+  const isLoggedIn = hasAuthCookie(req);
   const pathname = nextUrl.pathname;
-  const hasCookie = hasAuthCookie(req);
 
-  let token = null;
-  if (hasCookie) {
-    try {
-      token = await getToken({
+  const token = isLoggedIn
+    ? await getToken({
         req,
-        secret: authSecret,
+        secret: process.env.AUTH_SECRET,
         cookieName:
           process.env.NODE_ENV === "production"
             ? "__Secure-authjs.session-token"
             : "authjs.session-token",
-      });
-    } catch {
-      token = null;
-    }
-  }
-
-  const isLoggedIn = Boolean(token);
-  const staleCookie = hasCookie && !token;
-
-  if (staleCookie && pathname.startsWith("/login")) {
-    const response = NextResponse.next();
-    clearAuthCookies(response);
-    return response;
-  }
-
-  if (staleCookie && !pathname.startsWith("/api")) {
-    const loginPath = pathname.startsWith("/admin")
-      ? "/admin/login"
-      : pathname.startsWith("/compliance")
-        ? "/compliance/login"
-        : "/login";
-    const response = NextResponse.redirect(new URL(loginPath, nextUrl));
-    clearAuthCookies(response);
-    return response;
-  }
-
+      })
+    : null;
   const role = token?.role as string | undefined;
   const isAdmin = role === "ADMIN";
   const isComplianceOfficer = role === "COMPLIANCE_OFFICER";
@@ -147,7 +102,9 @@ export async function proxy(req: NextRequest) {
       ? ADMIN_HOME_PATH
       : isComplianceOfficer
         ? COMPLIANCE_HOME_PATH
-        : "/dashboard";
+        : role
+          ? getPostLoginRoute(role as UserRole)
+          : "/dashboard";
     return NextResponse.redirect(new URL(destination, nextUrl));
   }
 

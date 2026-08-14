@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,9 +29,9 @@ export default function LenderOpportunitiesPage() {
       const json = await res.json();
       return json.data as {
         financedCount: number;
-        limit: number | null;
-        remaining: number | null;
-        isPaid: boolean;
+        limit: number;
+        remaining: number;
+        atLimit: boolean;
       };
     },
   });
@@ -88,20 +87,11 @@ export default function LenderOpportunitiesPage() {
 
   return (
     <div className="space-y-6">
-      {financingAccess && !financingAccess.isPaid ? (
+      {financingAccess ? (
         <div className="rounded-none border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
-          Free plan: {financingAccess.financedCount} of {financingAccess.limit ?? 100} properties financed.
-          {financingAccess.remaining === 0 ? (
-            <>
-              {" "}
-              Subscribe for unlimited financing access.{" "}
-              <Link
-                href="/dashboard/lender/subscription"
-                className="font-medium text-amber-900 underline underline-offset-2 dark:text-amber-300"
-              >
-                View plans
-              </Link>
-            </>
+          {financingAccess.financedCount} of {financingAccess.limit} properties financed.
+          {financingAccess.atLimit ? (
+            <> You&apos;ve reached your financing limit.</>
           ) : (
             <> {financingAccess.remaining} financing slots remaining.</>
           )}
@@ -150,7 +140,7 @@ export default function LenderOpportunitiesPage() {
                   </p>
                 </div>
                 {req.mandate && req.mandate.status !== "ACTIVE" && (
-                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                  <p className="text-sm text-amber-700">
                     Repayment mandate must be active before you can approve funding.
                   </p>
                 )}

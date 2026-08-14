@@ -132,9 +132,9 @@ export function getSubscriptionSettingsPath(role?: UserRole | null) {
 
 export const POST_LOGIN_ROUTES: Record<UserRole, string> = {
   BUYER: DASHBOARD_ROUTES.BUYER,
-  MERCHANT: "/dashboard/merchant/properties",
+  MERCHANT: DASHBOARD_ROUTES.MERCHANT,
   MARKETER: DASHBOARD_ROUTES.MARKETER,
-  LENDER: DASHBOARD_ROUTES.LENDER,
+  LENDER: "/dashboard/lender/opportunities",
   ADMIN: DASHBOARD_ROUTES.ADMIN,
   COMPLIANCE_OFFICER: DASHBOARD_ROUTES.COMPLIANCE_OFFICER,
 };

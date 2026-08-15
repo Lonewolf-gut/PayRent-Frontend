@@ -22,6 +22,8 @@ type BrowseListing = {
   location: string;
   images?: { url: string }[];
   landlord?: { fullName: string };
+  promotionStatus?: "available" | "yours" | "claimed_by_other";
+  assignedAgent?: { fullName: string } | null;
 };
 
 type ReferralLink = {
@@ -148,21 +150,26 @@ export default function AgentPromotePage() {
       <div>
         <h1 className="text-2xl font-bold">Promote & earn commission</h1>
         <p className="text-muted-foreground">
-          Verified Affiliates can claim available listings or promote assigned ones. When someone applies, buys, or requests financing through your link, you earn commission.
+          Browse every active listing below. On the Free plan you can claim and promote{" "}
+          <strong>1 listing</strong> — upgrade to promote more. All listings also appear on the
+          public <a href="/properties" className="text-emerald-700 underline">Properties</a> page.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Available listings to claim</CardTitle>
+          <CardTitle className="text-base">All active listings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {browseLoading ? (
-            <p className="text-muted-foreground">Loading available listings...</p>
+            <p className="text-muted-foreground">Loading listings...</p>
           ) : !browseListings?.length ? (
-            <p className="text-muted-foreground">No unassigned active listings right now.</p>
+            <p className="text-muted-foreground">No active listings right now.</p>
           ) : (
-            browseListings.map((listing) => (
+            browseListings.map((listing) => {
+              const status = listing.promotionStatus ?? "available";
+
+              return (
               <div
                 key={listing.id}
                 className="flex flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -182,20 +189,41 @@ export default function AgentPromotePage() {
                   <div>
                     <p className="font-medium">{listing.name}</p>
                     <p className="text-sm text-muted-foreground">{listing.location}</p>
-                    <Badge variant="secondary" className="mt-1">
-                      {PROPERTY_TYPE_LABELS[listing.propertyType]}
-                    </Badge>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <Badge variant="secondary">
+                        {PROPERTY_TYPE_LABELS[listing.propertyType]}
+                      </Badge>
+                      {status === "yours" ? (
+                        <Badge className="bg-emerald-600">You are promoting this</Badge>
+                      ) : status === "claimed_by_other" ? (
+                        <Badge variant="outline">Promoted by another affiliate</Badge>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-                <Button
-                  onClick={() => claimMutation.mutate(listing.id)}
-                  disabled={claimMutation.isPending || atPromotionLimit}
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                >
-                  {atPromotionLimit ? "Upgrade to claim more" : "Claim to promote"}
-                </Button>
+                {status === "yours" ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedPropertyId(listing.id)}
+                  >
+                    Create link
+                  </Button>
+                ) : status === "claimed_by_other" ? (
+                  <Button variant="outline" disabled>
+                    Unavailable
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => claimMutation.mutate(listing.id)}
+                    disabled={claimMutation.isPending || atPromotionLimit}
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    {atPromotionLimit ? "Upgrade to claim more" : "Claim to promote"}
+                  </Button>
+                )}
               </div>
-            ))
+            );
+            })
           )}
         </CardContent>
       </Card>

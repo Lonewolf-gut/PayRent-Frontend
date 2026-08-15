@@ -1,11 +1,14 @@
 import type { NextConfig } from "next";
 
-const isProductionBuild = process.env.npm_lifecycle_event === "build";
-const isWindowsDev = process.platform === "win32" && !isProductionBuild;
+const lifecycle = process.env.npm_lifecycle_event ?? "";
+const isDevLifecycle =
+  lifecycle === "dev" || lifecycle === "dev:turbo" || lifecycle === "dev:webpack";
+const isProductionBuild = lifecycle === "build";
+const isWindowsDev = process.platform === "win32" && isDevLifecycle;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 
 const nextConfig: NextConfig = {
-  distDir: isProductionBuild ? ".next" : ".next-dev",
+  distDir: isDevLifecycle ? ".next-dev" : ".next",
   ...(isProductionBuild ? { output: "standalone" as const } : {}),
   typescript: {
     ignoreBuildErrors: true,

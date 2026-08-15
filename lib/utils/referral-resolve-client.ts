@@ -6,31 +6,59 @@ type ReferralResolveResult = {
   tracked: boolean;
 };
 
-function getReferralApiBase(req: NextRequest) {
-  return (
-    process.env.INTERNAL_API_URL?.replace(/\/$/, "") ??
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    req.nextUrl.origin
-  );
+function getReferralApiCandidates(req: NextRequest): string[] {
+  const candidates: string[] = [];
+
+  const push = (value?: string | null) => {
+    if (!value) return;
+    const normalized = value.replace(/\/$/, "");
+    if (!candidates.includes(normalized)) {
+      candidates.push(normalized);
+    }
+  };
+
+  push(process.env.INTERNAL_API_URL);
+  push(req.nextUrl.origin);
+
+  const customerOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (customerOrigin && customerOrigin !== req.nextUrl.origin) {
+    push(customerOrigin);
+  }
+
+  if (req.nextUrl.hostname === "localhost" && req.nextUrl.port === "3000") {
+    push("http://localhost:3001");
+  }
+
+  return candidates;
 }
 
 export async function resolveReferralRedirect(
   req: NextRequest,
   code: string
 ): Promise<ReferralResolveResult | null> {
-  const apiBase = getReferralApiBase(req);
-  const response = await fetch(
-    `${apiBase}/api/marketer/referral/resolve/${encodeURIComponent(code)}`,
-    { cache: "no-store" }
-  );
+  for (const apiBase of getReferralApiCandidates(req)) {
+    try {
+      const response = await fetch(
+        `${apiBase}/api/marketer/referral/resolve/${encodeURIComponent(code)}`,
+        { cache: "no-store" }
+      );
 
-  if (!response.ok) return null;
+      if (!response.ok) continue;
 
-  const json = (await response.json()) as {
-    success?: boolean;
-    data?: ReferralResolveResult;
-  };
+      const json = (await response.json()) as {
+        success?: boolean;
+        data?: ReferralResolveResult;
+      };
 
-  if (!json.success || !json.data?.redirectPath) return null;
-  return json.data;
+      if (!json.success || !json.data?.redirectPath || json.data.redirectPath === "/") {
+        continue;
+      }
+
+      return json.data;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }

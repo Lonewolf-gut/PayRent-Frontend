@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { proxyToInternalApi } from "@/lib/utils/internal-api-proxy";
 import { getPostLoginRoute } from "@/lib/auth/permissions";
 import {
   ADMIN_HOME_PATH,
@@ -66,7 +67,11 @@ export async function proxy(req: NextRequest) {
   const isAuthRoute = authRoutes.includes(pathname);
   const isApiRoute = pathname.startsWith("/api");
 
-  if (isApiRoute) return NextResponse.next();
+  if (isApiRoute) {
+    const proxied = await proxyToInternalApi(req);
+    if (proxied) return proxied;
+    return NextResponse.next();
+  }
 
   if (isAdmin) {
     if (pathname === "/admin/login") {

@@ -28,20 +28,6 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/agent/:path*", destination: "/dashboard/marketer/:path*", permanent: true },
     ];
   },
-  async rewrites() {
-    const backendUrl = process.env.INTERNAL_API_URL?.replace(/\/$/, "");
-    if (!backendUrl) return [];
-
-    // Proxy API to backend, but keep /api/auth/* on the frontend (NextAuth).
-    return {
-      beforeFiles: [
-        {
-          source: "/api/:path((?!auth).*)",
-          destination: `${backendUrl}/api/:path`,
-        },
-      ],
-    };
-  },
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",

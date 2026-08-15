@@ -18,6 +18,8 @@ function getReferralApiCandidates(req: NextRequest): string[] {
   };
 
   push(process.env.INTERNAL_API_URL);
+  push(process.env.API_URL);
+  push(process.env.NEXT_PUBLIC_API_URL);
   push(req.nextUrl.origin);
 
   const customerOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");

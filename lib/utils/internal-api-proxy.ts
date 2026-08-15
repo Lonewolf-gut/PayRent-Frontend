@@ -12,7 +12,11 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 function getInternalApiBaseUrl() {
-  return process.env.INTERNAL_API_URL?.replace(/\/$/, "") ?? "";
+  const url =
+    process.env.INTERNAL_API_URL ??
+    process.env.API_URL ??
+    process.env.NEXT_PUBLIC_API_URL;
+  return url?.replace(/\/$/, "") ?? "";
 }
 
 export function shouldProxyApiRequest(pathname: string) {
@@ -26,12 +30,12 @@ export function shouldProxyApiRequest(pathname: string) {
 function forwardRequestHeaders(req: NextRequest) {
   const headers = new Headers();
 
-  for (const [key, value] of req.headers.entries()) {
+  req.headers.forEach((value, key) => {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(lower)) continue;
-    if (lower === "host" || lower === "content-length") continue;
+    if (HOP_BY_HOP_HEADERS.has(lower)) return;
+    if (lower === "host" || lower === "content-length") return;
     headers.set(key, value);
-  }
+  });
 
   return headers;
 }

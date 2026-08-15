@@ -32,12 +32,15 @@ const nextConfig: NextConfig = {
     const backendUrl = process.env.INTERNAL_API_URL?.replace(/\/$/, "");
     if (!backendUrl) return [];
 
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
+    // Proxy API to backend, but keep /api/auth/* on the frontend (NextAuth).
+    return {
+      beforeFiles: [
+        {
+          source: "/api/:path((?!auth/).*)",
+          destination: `${backendUrl}/api/:path`,
+        },
+      ],
+    };
   },
   experimental: {
     serverActions: {

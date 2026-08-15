@@ -8,13 +8,7 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Accordion,
   AccordionContent,
@@ -100,15 +94,27 @@ export default function UserSettingsForm({
     async function loadSettings() {
       try {
         const res = await fetch(settingsApi);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.message ?? "Unable to load settings");
-        setEmail(json.data.user?.email ?? "");
-        setEmailVerified(Boolean(json.data.user?.emailVerified));
-        setFullName(json.data.user?.fullName ?? "");
-        setImageUrl(json.data.user?.image ?? "");
-        setPreviewUrl(json.data.user?.image ?? "");
-        setBankAccounts(json.data.bankAccounts ?? []);
-        setTwoFactorEnabled(Boolean(json.data.user?.twoFactorEnabled));
+        const json = await readApiJson(res);
+        if (!res.ok || json.success === false) {
+          throw new Error(getApiErrorMessage(json, "Unable to load settings"));
+        }
+        const data = json.data as {
+          user?: {
+            email?: string;
+            emailVerified?: boolean;
+            fullName?: string;
+            image?: string;
+            twoFactorEnabled?: boolean;
+          };
+          bankAccounts?: BankAccount[];
+        };
+        setEmail(data.user?.email ?? "");
+        setEmailVerified(Boolean(data.user?.emailVerified));
+        setFullName(data.user?.fullName ?? "");
+        setImageUrl(data.user?.image ?? "");
+        setPreviewUrl(data.user?.image ?? "");
+        setBankAccounts(data.bankAccounts ?? []);
+        setTwoFactorEnabled(Boolean(data.user?.twoFactorEnabled));
       } catch (error: unknown) {
         toast.error(error instanceof Error ? error.message : String(error));
       }
@@ -730,48 +736,40 @@ export default function UserSettingsForm({
             <form onSubmit={handleAddBankAccount} className="space-y-4">
               <div className="grid gap-2">
                 <Label>Account type</Label>
-                <Select value={accountType} onValueChange={setAccountType}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BANK">Bank</SelectItem>
-                    <SelectItem value="MOMO">MoMo</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect
+                  value={accountType}
+                  onChange={(e) => setAccountType(e.target.value)}
+                >
+                  <option value="BANK">Bank</option>
+                  <option value="MOMO">MoMo</option>
+                </NativeSelect>
               </div>
 
               <div className="grid gap-2">
                 <Label>{accountType === "MOMO" ? "Mobile money network" : "Bank"}</Label>
                 {providers.length > 0 ? (
-                <Select
-                  value={bankCode || undefined}
-                  onValueChange={(value) => {
-                    const selected = providers.find((item) => item.code === value);
-                    setBankCode(value);
+                <NativeSelect
+                  value={bankCode}
+                  onChange={(e) => {
+                    const selected = providers.find((item) => item.code === e.target.value);
+                    setBankCode(e.target.value);
                     setBankName(selected?.name ?? "");
                   }}
                   disabled={providersLoading}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue
-                      placeholder={
-                        providersLoading
-                          ? "Loading providers…"
-                          : accountType === "MOMO"
-                            ? "Select MTN, Telecel, or AirtelTigo"
-                            : "Select your bank"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {providers.map((provider) => (
-                      <SelectItem key={provider.code} value={provider.code}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <option value="">
+                    {providersLoading
+                      ? "Loading providers…"
+                      : accountType === "MOMO"
+                        ? "Select MTN, Telecel, or AirtelTigo"
+                        : "Select your bank"}
+                  </option>
+                  {providers.map((provider) => (
+                    <option key={provider.code} value={provider.code}>
+                      {provider.name}
+                    </option>
+                  ))}
+                </NativeSelect>
                 ) : (
                   <Input
                     value={bankName}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { toast } from "sonner";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
@@ -26,6 +31,22 @@ type BrowseListing = {
   promotionStatus?: "available" | "yours" | "claimed_by_other";
   assignedAgent?: { fullName: string } | null;
 };
+
+type AssignmentLimits = {
+  plan: string;
+  unlimited: boolean;
+  agentCommissionPercent?: number;
+  usage: { total: number };
+  limits: { total: number | null } | null;
+};
+
+function formatCurrency(amount: number) {
+  return `GHS ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function estimateCommission(price: number, ratePercent: number) {
+  return Math.round(price * (ratePercent / 100) * 100) / 100;
+}
 
 type ReferralLink = {
   id: string;
@@ -72,11 +93,7 @@ export default function AgentPromotePage() {
     queryFn: async () => {
       const res = await fetch("/api/properties/listing-limits");
       const json = await res.json();
-      return json.data as {
-        unlimited: boolean;
-        usage: { total: number };
-        limits: { total: number | null } | null;
-      };
+      return json.data as AssignmentLimits;
     },
   });
 
@@ -97,6 +114,7 @@ export default function AgentPromotePage() {
   }, [preselectedPropertyId, promotableListings, selectedPropertyId]);
   const promotionLimit = assignmentLimits?.limits?.total ?? 1;
   const promotionUsed = assignmentLimits?.usage.total ?? 0;
+  const commissionRate = assignmentLimits?.agentCommissionPercent ?? 2.5;
   const atPromotionLimit =
     !assignmentLimits?.unlimited && promotionUsed >= promotionLimit;
 
@@ -151,9 +169,8 @@ export default function AgentPromotePage() {
       <div>
         <h1 className="text-2xl font-bold">Promote & earn commission</h1>
         <p className="text-muted-foreground">
-          Browse every active listing below. On the Free plan you can claim and promote{" "}
-          <strong>1 listing</strong> — upgrade to promote more. All listings also appear on the
-          public <a href="/properties" className="text-emerald-700 underline">Properties</a> page.
+          Claim a listing, share your link, and earn {commissionRate}% commission when customers buy
+          or request financing.
         </p>
       </div>
 
@@ -161,7 +178,7 @@ export default function AgentPromotePage() {
         <CardHeader>
           <CardTitle className="text-base">All active listings</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-1">
           {browseLoading ? (
             <p className="text-muted-foreground">Loading listings...</p>
           ) : !browseListings?.length ? (
@@ -169,6 +186,8 @@ export default function AgentPromotePage() {
           ) : (
             browseListings.map((listing) => {
               const status = listing.promotionStatus ?? "available";
+              const price = Number(listing.monthlyRent);
+              const commission = estimateCommission(price, commissionRate);
 
               return (
               <div
@@ -188,6 +207,12 @@ export default function AgentPromotePage() {
                   <div>
                     <p className="font-medium">{listing.name}</p>
                     <p className="text-sm text-muted-foreground">{listing.location}</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {formatCurrency(price)}
+                      <span className="ml-2 text-xs font-normal text-emerald-700 dark:text-emerald-400">
+                        Est. commission {formatCurrency(commission)} ({commissionRate}%)
+                      </span>
+                    </p>
                     <div className="mt-1 flex flex-wrap gap-2">
                       <Badge variant="secondary">
                         {PROPERTY_TYPE_LABELS[listing.propertyType]}
@@ -227,11 +252,12 @@ export default function AgentPromotePage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Create promotion link</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Accordion type="multiple" defaultValue={["create-link", "your-links"]} className="space-y-4">
+        <AccordionItem value="create-link" className="rounded-lg border bg-card px-4">
+          <AccordionTrigger className="py-4 text-base font-semibold hover:no-underline">
+            Create promotion link
+          </AccordionTrigger>
+          <AccordionContent className="space-y-4 pb-4">
           <div className="space-y-2">
             <Label htmlFor="property">Listing</Label>
             <NativeSelect
@@ -271,14 +297,14 @@ export default function AgentPromotePage() {
           >
             Generate link
           </Button>
-        </CardContent>
-      </Card>
+          </AccordionContent>
+        </AccordionItem>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Your promotion links</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+        <AccordionItem value="your-links" className="rounded-lg border bg-card px-4">
+          <AccordionTrigger className="py-4 text-base font-semibold hover:no-underline">
+            Your promotion links
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 pb-4">
           {linksLoading ? (
             <p className="text-muted-foreground">Loading links...</p>
           ) : !referralLinks?.length ? (
@@ -297,17 +323,15 @@ export default function AgentPromotePage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{link.clickCount} clicks</Badge>
-                    {link.property ? (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={link.url} target="_blank" rel="noreferrer">
-                          Open
-                        </a>
-                      </Button>
-                    ) : null}
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={link.url} target="_blank" rel="noreferrer">
+                        Open
+                      </a>
+                    </Button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input readOnly value={link.url} />
+                  <Input readOnly value={link.url} className="font-sans" />
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -321,8 +345,9 @@ export default function AgentPromotePage() {
               </div>
             ))
           )}
-        </CardContent>
-      </Card>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

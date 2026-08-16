@@ -9,6 +9,14 @@ import { PropertyListingImage } from "@/components/properties/property-listing-i
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
 
+function formatCurrency(amount: number) {
+  return `GHS ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function estimateCommission(price: number, ratePercent: number) {
+  return Math.round(price * (ratePercent / 100) * 100) / 100;
+}
+
 type Listing = {
   id: string;
   name: string;
@@ -30,6 +38,17 @@ export default function AgentListingsPage() {
       return (json.data ?? []) as Listing[];
     },
   });
+
+  const { data: assignmentLimits } = useQuery({
+    queryKey: ["listing-limits"],
+    queryFn: async () => {
+      const res = await fetch("/api/properties/listing-limits");
+      const json = await res.json();
+      return json.data as { agentCommissionPercent?: number };
+    },
+  });
+
+  const commissionRate = assignmentLimits?.agentCommissionPercent ?? 2.5;
 
   return (
     <div className="space-y-6">
@@ -78,9 +97,15 @@ export default function AgentListingsPage() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{listing.location}</p>
-                  <p className="text-sm">
-                    GHS {Number(listing.monthlyRent).toLocaleString()}
-                    <span className="text-muted-foreground"> / month</span>
+                  <p className="text-sm font-medium">
+                    {formatCurrency(Number(listing.monthlyRent))}
+                    <span className="ml-2 text-xs font-normal text-emerald-700 dark:text-emerald-400">
+                      Est. commission{" "}
+                      {formatCurrency(
+                        estimateCommission(Number(listing.monthlyRent), commissionRate)
+                      )}{" "}
+                      ({commissionRate}%)
+                    </span>
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {listing._count?.applications ?? 0} application(s)

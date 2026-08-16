@@ -2,8 +2,9 @@ export type ApiErrorJson = {
   success?: boolean;
   message?: string;
   errors?: { message?: string; code?: string }[] | null;
+  error?: { message?: string; code?: string } | null;
   data?: {
-    error?: {
+    error?: string | {
       formErrors?: string[];
       fieldErrors?: Record<string, string[]>;
     };
@@ -14,13 +15,25 @@ export function getApiErrorMessage(
   json: ApiErrorJson,
   fallback = "Something went wrong. Please try again."
 ) {
-  const fieldErrors = json.data?.error?.fieldErrors;
+  if (json.error?.message) return json.error.message;
+
+  if (typeof json.data?.error === "string" && json.data.error.trim()) {
+    return json.data.error;
+  }
+
+  const fieldErrors =
+    json.data?.error && typeof json.data.error === "object"
+      ? json.data.error.fieldErrors
+      : undefined;
   if (fieldErrors) {
     const first = Object.values(fieldErrors).flat().find(Boolean);
     if (first) return first;
   }
 
-  const formErrors = json.data?.error?.formErrors;
+  const formErrors =
+    json.data?.error && typeof json.data.error === "object"
+      ? json.data.error.formErrors
+      : undefined;
   if (formErrors?.[0]) return formErrors[0];
 
   if (json.errors?.[0]?.message) return json.errors[0].message;

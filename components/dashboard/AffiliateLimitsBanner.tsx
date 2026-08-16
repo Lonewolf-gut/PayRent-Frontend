@@ -60,7 +60,10 @@ export function AffiliateLimitsBanner() {
     setDismissed(true);
   };
 
-  if (isLoading || !data || data.unlimited || dismissed) return null;
+  if (isLoading || !data || dismissed) return null;
+
+  const isFreePlan = data.plan === "FREE" || (!data.unlimited && data.plan !== "PRO" && data.plan !== "MAX");
+  if (!isFreePlan) return null;
 
   const remaining = Math.max(0, limit - used);
 

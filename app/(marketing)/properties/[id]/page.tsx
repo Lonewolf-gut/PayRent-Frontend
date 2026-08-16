@@ -371,7 +371,7 @@ export default function PropertyDetailPage() {
             <Card className="rounded-none">
               <CardContent className="pt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Sign in to buy with wallet, apply, or request financing for this listing.
+                  Sign in to buy or request financing for this listing.
                 </p>
                 <div className="flex flex-col gap-2">
                   <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">

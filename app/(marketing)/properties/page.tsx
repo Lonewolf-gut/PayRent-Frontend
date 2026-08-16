@@ -16,6 +16,7 @@ import {
 import { useMemo, useState } from "react";
 import { MapPin, Bed, Car, Refrigerator } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import {
   PROPERTY_CATEGORIES,
   PROPERTY_TYPE_LABELS,
@@ -23,7 +24,7 @@ import {
   isSaleListing,
   type PropertyCategory,
 } from "@/lib/subscription-limits";
-import { resolvePropertyImageDisplayUrl } from "@/lib/utils/property-image-display";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import type { PropertyType } from "@prisma/client";
 
 function listingIcon(type: string) {
@@ -154,13 +155,8 @@ export default function PropertiesPage() {
                 <div className="relative aspect-[4/3] bg-muted sm:aspect-video">
                   <PropertySaveButton propertyId={property.id} />
                   {property.images?.[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={
-                        property.images[0].src ??
-                        property.images[0].displayUrl ??
-                        resolvePropertyImageDisplayUrl(property.images[0])
-                      }
+                    <PropertyListingImage
+                      image={property.images[0]}
                       alt={property.name}
                       className="h-full w-full object-cover"
                     />

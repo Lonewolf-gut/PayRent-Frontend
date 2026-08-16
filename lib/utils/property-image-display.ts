@@ -5,7 +5,6 @@ import {
   normalizeDbImageUrl,
   resolvePublicObjectUrl,
 } from "@/lib/utils/public-storage-url";
-import { isPropertyImageStorageReference } from "@/lib/utils/property-image-storage";
 
 export type PropertyImageRecord = {
   id?: string;
@@ -80,7 +79,7 @@ export function propertyImageApiPath(imageId: string) {
 
 /**
  * Final browser URL for a PropertyImage row.
- * Storage keys always go through the API route so the backend can read R2/S3 with credentials.
+ * Non-data URLs with an id load through the backend API (reads R2/S3 with server credentials).
  */
 export function resolvePropertyImageDisplayUrl(image: PropertyImageRecord): string {
   const raw = normalizeDbImageUrl(image.url);
@@ -92,13 +91,12 @@ export function resolvePropertyImageDisplayUrl(image: PropertyImageRecord): stri
     return raw;
   }
 
-  if (/^https?:\/\//i.test(raw)) {
-    return normalizeSupabasePublicUrl(raw);
+  if (image.id) {
+    return propertyImageApiPath(image.id);
   }
 
-  // Storage key or legacy path — backend serves bytes (works with private R2 buckets).
-  if (isPropertyImageStorageReference(raw) && image.id) {
-    return propertyImageApiPath(image.id);
+  if (/^https?:\/\//i.test(raw)) {
+    return normalizeSupabasePublicUrl(raw);
   }
 
   const cdnUrl = resolvePublicObjectUrl(raw);
@@ -112,18 +110,12 @@ export function resolvePropertyImageDisplayUrl(image: PropertyImageRecord): stri
   }
 
   if (raw.startsWith("/uploads/") || raw.startsWith("uploads/")) {
-    if (image.id) return propertyImageApiPath(image.id);
     return raw.startsWith("/") ? raw : `/${raw}`;
   }
 
   if (raw.startsWith("public/")) {
     const fromKey = expandStorageKeyToPublicUrl(raw);
     if (fromKey) return fromKey;
-    if (image.id) return propertyImageApiPath(image.id);
-  }
-
-  if (image.id) {
-    return propertyImageApiPath(image.id);
   }
 
   return raw;

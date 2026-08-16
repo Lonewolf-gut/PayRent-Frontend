@@ -9,11 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  normalizeDbImageUrl,
   propertyImageApiPath,
-  resolvePropertyImageDisplayUrl,
   type PropertyImageRecord,
 } from "@/lib/utils/property-image-display";
+import { resolveListingImageSrc } from "@/components/properties/property-listing-image";
 
 type GalleryImage = PropertyImageRecord & {
   alt?: string | null;
@@ -27,19 +26,7 @@ type PropertyImageGalleryProps = {
 };
 
 function imageSrc(image: GalleryImage) {
-  const raw = normalizeDbImageUrl(image.url);
-
-  // Storage keys/paths: always load via backend (reads R2 with server credentials).
-  if (image.id && raw && !/^data:/i.test(raw) && !/^https?:\/\//i.test(raw)) {
-    return propertyImageApiPath(image.id);
-  }
-
-  return (
-    image.src ??
-    image.displayUrl ??
-    resolvePropertyImageDisplayUrl(image) ??
-    raw
-  );
+  return resolveListingImageSrc(image);
 }
 
 function fallbackSrc(image: GalleryImage, primary: string) {

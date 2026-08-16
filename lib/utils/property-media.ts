@@ -18,7 +18,7 @@ import {
 
 type ImageRecord = { id?: string; url: string };
 
-/** Server-side resolver: API route for storage keys; CDN/https for direct links. */
+/** Server-side resolver: API route for all non-data images when id is present. */
 export function resolvePropertyImageUrlForResponse(image: ImageRecord): string {
   const raw = normalizeDbImageUrl(image.url);
   if (!raw) {
@@ -29,12 +29,12 @@ export function resolvePropertyImageUrlForResponse(image: ImageRecord): string {
     return raw;
   }
 
-  if (/^https?:\/\//i.test(raw)) {
-    return normalizeSupabasePublicUrl(raw);
+  if (image.id) {
+    return propertyImageApiPath(image.id);
   }
 
-  if (isPropertyImageStorageReference(raw) && image.id) {
-    return propertyImageApiPath(image.id);
+  if (/^https?:\/\//i.test(raw)) {
+    return normalizeSupabasePublicUrl(raw);
   }
 
   const cdnUrl = resolvePublicObjectUrl(raw);
@@ -50,10 +50,6 @@ export function resolvePropertyImageUrlForResponse(image: ImageRecord): string {
   const publicUrl = getPublicFileUrl(normalizeStoredFileReference(raw));
   if (publicUrl && isDirectlyLoadableImageUrl(publicUrl)) {
     return publicUrl.startsWith("http") ? normalizeSupabasePublicUrl(publicUrl) : publicUrl;
-  }
-
-  if (image.id) {
-    return propertyImageApiPath(image.id);
   }
 
   return resolvePropertyImageDisplayUrl(image);

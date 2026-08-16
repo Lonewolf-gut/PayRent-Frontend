@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { isSaleListing } from "@/lib/subscription-limits";
-import { resolvePropertyImageDisplayUrl } from "@/lib/utils/property-image-display";
 import type { PropertyType } from "@prisma/client";
 
 type SimilarProperty = {
@@ -34,9 +34,8 @@ export function SimilarPropertiesSection({ items }: { items: SimilarProperty[] }
               <Card className="h-full overflow-hidden rounded-none py-0 shadow-xs transition-colors hover:bg-muted/20">
                 <div className="relative aspect-[4/3] bg-muted">
                   {image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={image.src ?? image.displayUrl ?? resolvePropertyImageDisplayUrl(image)}
+                    <PropertyListingImage
+                      image={image}
                       alt={image.alt ?? item.name}
                       className="h-full w-full object-cover"
                     />

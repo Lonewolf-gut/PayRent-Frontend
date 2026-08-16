@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
-import { resolveAssetUrl } from "@/lib/utils/asset-url";
 
 type Listing = {
   id: string;
@@ -17,7 +16,7 @@ type Listing = {
   monthlyRent: string | number;
   location: string;
   status: string;
-  images?: { url: string }[];
+  images?: { id?: string; url: string; displayUrl?: string | null; src?: string | null }[];
   landlord?: { fullName: string };
   _count?: { applications: number };
 };
@@ -63,13 +62,11 @@ export default function AgentListingsPage() {
             <Card key={listing.id}>
               <CardContent className="flex gap-4 pt-6">
                 <div className="relative h-20 w-28 shrink-0 overflow-hidden border bg-muted">
-                  {listing.images?.[0]?.url ? (
-                    <Image
-                      src={resolveAssetUrl(listing.images[0].url)}
+                  {listing.images?.[0] ? (
+                    <PropertyListingImage
+                      image={listing.images[0]}
                       alt={listing.name}
-                      fill
-                      className="object-cover"
-                      unoptimized
+                      className="h-full w-full object-cover"
                     />
                   ) : null}
                 </div>

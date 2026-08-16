@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Badge } from "@/components/ui/badge";
+import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import { toast } from "sonner";
 import { PROPERTY_TYPE_LABELS } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
@@ -20,7 +21,7 @@ type BrowseListing = {
   propertyType: PropertyType;
   monthlyRent: string | number;
   location: string;
-  images?: { url: string }[];
+  images?: { id?: string; url: string; displayUrl?: string | null; src?: string | null }[];
   landlord?: { fullName: string };
   promotionStatus?: "available" | "yours" | "claimed_by_other";
   assignedAgent?: { fullName: string } | null;
@@ -176,13 +177,11 @@ export default function AgentPromotePage() {
               >
                 <div className="flex gap-3">
                   <div className="relative h-16 w-24 shrink-0 overflow-hidden border bg-muted">
-                    {listing.images?.[0]?.url ? (
-                      <Image
-                        src={listing.images[0].url}
+                    {listing.images?.[0] ? (
+                      <PropertyListingImage
+                        image={listing.images[0]}
                         alt={listing.name}
-                        fill
-                        className="object-cover"
-                        unoptimized
+                        className="h-full w-full object-cover"
                       />
                     ) : null}
                   </div>

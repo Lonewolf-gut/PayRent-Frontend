@@ -24,7 +24,6 @@ import {
   isSaleListing,
   type PropertyCategory,
 } from "@/lib/subscription-limits";
-import { PropertyListingImage } from "@/components/properties/property-listing-image";
 import type { PropertyType } from "@prisma/client";
 
 function listingIcon(type: string) {

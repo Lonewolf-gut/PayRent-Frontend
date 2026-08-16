@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { isSaleListing } from "@/lib/subscription-limits";
-import { resolveAssetUrl } from "@/lib/utils/asset-url";
+import { resolvePropertyImageDisplayUrl } from "@/lib/utils/property-image-display";
 import type { PropertyType } from "@prisma/client";
 
 type SimilarProperty = {
@@ -14,7 +13,7 @@ type SimilarProperty = {
   location: string;
   monthlyRent: unknown;
   discountedPrice?: unknown;
-  images?: { url: string; alt?: string | null }[];
+  images?: { id?: string; url: string; alt?: string | null; displayUrl?: string | null }[];
 };
 
 export function SimilarPropertiesSection({ items }: { items: SimilarProperty[] }) {
@@ -34,12 +33,12 @@ export function SimilarPropertiesSection({ items }: { items: SimilarProperty[] }
             <Link key={item.id} href={`/properties/${item.id}`}>
               <Card className="h-full overflow-hidden rounded-none py-0 shadow-xs transition-colors hover:bg-muted/20">
                 <div className="relative aspect-[4/3] bg-muted">
-                  {image?.url ? (
-                    <Image
-                      src={resolveAssetUrl(image.url)}
+                  {image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={image.displayUrl ?? resolvePropertyImageDisplayUrl(image)}
                       alt={image.alt ?? item.name}
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   ) : null}
                 </div>

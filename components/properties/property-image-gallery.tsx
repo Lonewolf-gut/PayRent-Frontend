@@ -1,25 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X, Grid3X3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { resolveAssetUrl } from "@/lib/utils/asset-url";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  resolvePropertyImageDisplayUrl,
+  type PropertyImageRecord,
+} from "@/lib/utils/property-image-display";
 
-type GalleryImage = {
-  id: string;
-  url: string;
+type GalleryImage = PropertyImageRecord & {
   alt?: string | null;
+  displayUrl?: string | null;
 };
 
 type PropertyImageGalleryProps = {
   images: GalleryImage[];
   title: string;
 };
+
+function gallerySrc(image: GalleryImage) {
+  return image.displayUrl || resolvePropertyImageDisplayUrl(image);
+}
+
+function GalleryImg({
+  image,
+  alt,
+  className,
+}: {
+  image: GalleryImage;
+  alt: string;
+  className?: string;
+}) {
+  const candidates = useMemo(() => {
+    const primary = gallerySrc(image);
+    const fallbacks: string[] = [];
+
+    if (image.id && primary !== `/api/files/property-image/${image.id}`) {
+      fallbacks.push(`/api/files/property-image/${image.id}`);
+    }
+
+    const raw = image.url?.trim();
+    if (raw && raw !== primary && !fallbacks.includes(raw)) {
+      fallbacks.push(raw);
+    }
+
+    return [primary, ...fallbacks].filter(Boolean);
+  }, [image]);
+
+  const [index, setIndex] = useState(0);
+  const src = candidates[index] ?? "";
+
+  if (!src) {
+    return <div className={`bg-muted ${className ?? ""}`} />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (index < candidates.length - 1) {
+          setIndex((current) => current + 1);
+        }
+      }}
+    />
+  );
+}
 
 export function PropertyImageGallery({ images, title }: PropertyImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -30,7 +83,6 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
   }
 
   const active = images[activeIndex] ?? images[0];
-  const activeSrc = resolveAssetUrl(active.url);
 
   const goPrev = () => setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
   const goNext = () => setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
@@ -38,11 +90,15 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
   return (
     <div className="space-y-3">
       <div className="group relative aspect-video overflow-hidden rounded-lg bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={activeSrc}
+        <GalleryImg
+          image={active}
           alt={active.alt ?? title}
           className="h-full w-full cursor-pointer object-cover transition hover:scale-[1.01]"
+        />
+        <button
+          type="button"
+          className="absolute inset-0 z-[1]"
+          aria-label="Open gallery"
           onClick={() => setLightboxOpen(true)}
         />
         {images.length > 1 ? (
@@ -51,7 +107,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
               type="button"
               size="icon-sm"
               variant="secondary"
-              className="absolute left-2 top-1/2 -translate-y-1/2 opacity-90"
+              className="absolute left-2 top-1/2 z-[2] -translate-y-1/2 opacity-90"
               onClick={goPrev}
               aria-label="Previous image"
             >
@@ -61,7 +117,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
               type="button"
               size="icon-sm"
               variant="secondary"
-              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-90"
+              className="absolute right-2 top-1/2 z-[2] -translate-y-1/2 opacity-90"
               onClick={goNext}
               aria-label="Next image"
             >
@@ -71,7 +127,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
               type="button"
               size="sm"
               variant="secondary"
-              className="absolute bottom-3 right-3 gap-1.5 opacity-90"
+              className="absolute bottom-3 right-3 z-[2] gap-1.5 opacity-90"
               onClick={() => setLightboxOpen(true)}
             >
               <Grid3X3 className="size-4" />
@@ -85,16 +141,15 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
           {images.map((img, index) => (
             <button
-              key={img.id}
+              key={img.id ?? `${img.url}-${index}`}
               type="button"
               onClick={() => setActiveIndex(index)}
               className={`aspect-[4/3] overflow-hidden rounded-md border-2 transition ${
                 index === activeIndex ? "border-emerald-600" : "border-transparent hover:border-emerald-300"
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={resolveAssetUrl(img.url)}
+              <GalleryImg
+                image={img}
                 alt={img.alt ?? `${title} photo ${index + 1}`}
                 className="h-full w-full object-cover"
               />
@@ -117,9 +172,8 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
             >
               <X className="size-4" />
             </Button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={activeSrc}
+            <GalleryImg
+              image={active}
               alt={active.alt ?? title}
               className="max-h-[70vh] w-full object-contain"
             />
@@ -150,15 +204,14 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
             <div className="grid max-h-[20vh] grid-cols-4 gap-2 overflow-y-auto p-3 sm:grid-cols-6">
               {images.map((img, index) => (
                 <button
-                  key={img.id}
+                  key={img.id ?? `${img.url}-${index}`}
                   type="button"
                   onClick={() => setActiveIndex(index)}
                   className={`aspect-square overflow-hidden rounded border-2 ${
                     index === activeIndex ? "border-emerald-500" : "border-transparent"
                   }`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={resolveAssetUrl(img.url)} alt="" className="h-full w-full object-cover" />
+                  <GalleryImg image={img} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>

@@ -1,10 +1,27 @@
-import {
-  isLegacyPublicUploadPath,
-  isStorageKey,
-  legacyPathToStorageKey,
-  normalizeStoredFileReference,
-} from "@/lib/storage/keys";
 import { normalizeDbImageUrl } from "@/lib/utils/public-storage-url";
+
+function isStorageKey(value: string) {
+  return value.startsWith("private/") || value.startsWith("public/");
+}
+
+function isLegacyPublicUploadPath(value: string) {
+  return value.startsWith("/uploads/");
+}
+
+function legacyPathToStorageKey(fileUrl: string) {
+  const normalized = fileUrl.replace(/^\/+/, "");
+  if (normalized.startsWith("uploads/")) {
+    return `public/${normalized.replace("uploads/", "")}`;
+  }
+  return normalized;
+}
+
+function normalizeStoredFileReference(fileUrl: string) {
+  if (isStorageKey(fileUrl)) return fileUrl;
+  if (isLegacyPublicUploadPath(fileUrl)) return legacyPathToStorageKey(fileUrl);
+  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
+  return legacyPathToStorageKey(`/${fileUrl}`);
+}
 
 /** True when PropertyImage.url is a storage key/path (not a loadable https or data URL). */
 export function isPropertyImageStorageReference(url: string | null | undefined): boolean {

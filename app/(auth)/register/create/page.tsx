@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useForm, type FieldErrors } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { RentVestLogo } from "@/components/rentvest/logo";
@@ -14,9 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { signIn, getSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
+import { appendCallbackUrl, buildLoginUrl, resolveAuthReturnUrl } from "@/lib/utils/auth-callback-url";
 import { readApiJson, stripSensitiveQueryParams } from "@/lib/utils/api-message";
-import { getRegisterErrorMessage } from "@/lib/utils/auth-toast-messages";
+import {
+  getPostRegisterSignInErrorMessage,
+  getRegisterErrorMessage,
+} from "@/lib/utils/auth-toast-messages";
 import { toast } from "sonner";
 import { ROLE_LABELS } from "@/constants/platform";
 
@@ -38,25 +42,18 @@ const roleLabels: Record<"BUYER" | "MERCHANT" | "MARKETER" | "LENDER", string> =
   LENDER: "investor",
 };
 
-function firstFormError(errors: FieldErrors<RegisterInput>) {
-  for (const value of Object.values(errors)) {
-    if (value && typeof value === "object" && "message" in value && value.message) {
-      return String(value.message);
-    }
-  }
-  return "Please check the highlighted fields and try again.";
-}
-
-function RegisterCreateForm() {
+function RegisterCreatePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const roleParam = searchParams.get("role");
-  const entityParam = searchParams.get("entityType");
-  const role = (["BUYER", "MERCHANT", "MARKETER", "LENDER"].includes(roleParam ?? "")
-    ? roleParam
-    : "BUYER") as "BUYER" | "MERCHANT" | "MARKETER" | "LENDER";
+  const initialRole = (searchParams.get("role") ?? "BUYER") as
+    | "BUYER"
+    | "MERCHANT"
+    | "MARKETER"
+    | "LENDER";
+  const role = ["BUYER", "MERCHANT", "MARKETER", "LENDER"].includes(initialRole) ? initialRole : "BUYER";
+  const initialEntity = searchParams.get("entityType");
   const entityType: "INDIVIDUAL" | "COMPANY" =
-    entityParam === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
+    initialEntity === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
   const [loading, setLoading] = useState(false);
   const showEntityType = role === "BUYER" || role === "MERCHANT";
   const requiresDateOfBirth = entityType !== "COMPANY";
@@ -69,12 +66,7 @@ function RegisterCreateForm() {
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      role,
-      entityType,
-      dataProcessingConsent: false,
-      termsAccepted: false,
-    },
+    defaultValues: { role },
   });
 
   const passwordValue = watch("password") ?? "";
@@ -84,18 +76,10 @@ function RegisterCreateForm() {
   }, []);
 
   useEffect(() => {
-    setValue("role", role);
-    setValue("entityType", entityType);
-  }, [entityType, role, setValue]);
-
-  useEffect(() => {
-    if (roleParam) return;
-    router.replace("/register");
-  }, [roleParam, router]);
-
-  const onInvalid = (formErrors: FieldErrors<RegisterInput>) => {
-    toast.error(firstFormError(formErrors));
-  };
+    if (!searchParams.get("role")) {
+      router.replace("/register");
+    }
+  }, [router, searchParams]);
 
   const onSubmit = async (data: RegisterInput) => {
     setLoading(true);
@@ -108,7 +92,7 @@ function RegisterCreateForm() {
         body: JSON.stringify({
           ...data,
           role,
-          entityType,
+          entityType: showEntityType ? entityType : undefined,
         }),
       });
       const json = await readApiJson(res);
@@ -126,37 +110,25 @@ function RegisterCreateForm() {
       });
 
       if (signInResult?.error) {
-        toast.success(
-          "Your account was created. Sign in with your email and password to verify your email.",
+        toast.error(
+          getPostRegisterSignInErrorMessage(signInResult.error, signInResult.code),
           { id: toastId }
         );
-        router.push(`/login/access?role=${role}&registered=1`);
+        router.push(`/login/access?role=${role}`);
         return;
       }
 
-      const session = await getSession();
-      if (!session?.user) {
-        toast.success(
-          "Your account was created. Sign in to continue to email verification.",
-          { id: toastId }
-        );
-        router.push(`/login/access?role=${role}&registered=1`);
-        return;
-      }
-
-      toast.success("Welcome! Verify your email to continue.", { id: toastId });
+      toast.success("Welcome! Your account is ready — verify your email to continue.", {
+        id: toastId,
+      });
       sessionStorage.setItem("fresh-dashboard-login", "1");
-      window.location.assign("/verify-email");
-    } catch (error) {
-      const isNetworkError =
-        error instanceof TypeError ||
-        (error instanceof Error && /failed to fetch|network/i.test(error.message));
-      toast.error(
-        isNetworkError
-          ? "Cannot reach the server. Confirm the backend is running, then try again."
-          : "Something went wrong while creating your account. Please try again.",
-        { id: toastId }
-      );
+      const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"), false);
+      router.push(appendCallbackUrl("/verify-email", returnUrl));
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong while creating your account. Please try again.", {
+        id: toastId,
+      });
     } finally {
       setLoading(false);
     }
@@ -199,20 +171,16 @@ function RegisterCreateForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="mt-8 space-y-5" autoComplete="on">
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" autoComplete="on">
           {showEntityType && entityType === "COMPANY" ? (
             <div className="space-y-2.5">
               <Label htmlFor="companyName" className="text-sm font-medium text-slate-700">
                 Company name <span className="text-emerald-600">*</span>
               </Label>
               <Input id="companyName" className="h-11" {...register("companyName")} />
-              {errors.companyName ? (
-                <p className="text-xs text-destructive">{errors.companyName.message}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  This business name will appear on your profile after registration.
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                This business name will appear on your profile after registration.
+              </p>
             </div>
           ) : null}
           <div className="space-y-2.5">
@@ -259,9 +227,6 @@ function RegisterCreateForm() {
               Phone number
             </Label>
             <Input id="phone" className="h-11" {...register("phone")} />
-            {errors.phone ? (
-              <p className="text-xs text-destructive">{errors.phone.message}</p>
-            ) : null}
           </div>
           <div className="space-y-2.5">
             <Label htmlFor="password" className="text-sm font-medium text-slate-700">
@@ -284,7 +249,12 @@ function RegisterCreateForm() {
               <input
                 type="checkbox"
                 className="mt-1"
-                {...register("dataProcessingConsent")}
+                checked={watch("dataProcessingConsent") === true}
+                onChange={(e) =>
+                  setValue("dataProcessingConsent", e.target.checked ? true : (undefined as never), {
+                    shouldValidate: true,
+                  })
+                }
               />
               <span>
                 I consent to PayForMe collecting and processing my personal data as described in the{" "}
@@ -301,7 +271,12 @@ function RegisterCreateForm() {
               <input
                 type="checkbox"
                 className="mt-1"
-                {...register("termsAccepted")}
+                checked={watch("termsAccepted") === true}
+                onChange={(e) =>
+                  setValue("termsAccepted", e.target.checked ? true : (undefined as never), {
+                    shouldValidate: true,
+                  })
+                }
               />
               <span>
                 I accept the PayForMe{" "}
@@ -325,7 +300,10 @@ function RegisterCreateForm() {
         </form>
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+          <Link
+            href={buildLoginUrl(resolveAuthReturnUrl(searchParams.get("callbackUrl"), false), role)}
+            className="font-medium text-emerald-600 hover:underline"
+          >
             Sign in
           </Link>
         </p>
@@ -336,8 +314,8 @@ function RegisterCreateForm() {
 
 export default function RegisterCreatePage() {
   return (
-    <Suspense fallback={<p className="p-8 text-center text-sm text-muted-foreground">Loading…</p>}>
-      <RegisterCreateForm />
+    <Suspense fallback={<p className="py-16 text-center text-sm text-muted-foreground">Loading…</p>}>
+      <RegisterCreatePageInner />
     </Suspense>
   );
 }

@@ -14,6 +14,7 @@ import {
 import { RentVestLogo } from "@/components/rentvest/logo";
 import { AuthBackLink, AuthSplitLayout } from "@/components/rentvest/auth-split-layout";
 import { cn } from "@/lib/utils";
+import { buildLoginUrl, resolveAuthReturnUrl } from "@/lib/utils/auth-callback-url";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/constants/platform";
 
 type EntityType = "INDIVIDUAL" | "COMPANY";
@@ -142,6 +143,10 @@ export function RegisterFlow() {
       role,
       entityType,
     });
+    const returnUrl = resolveAuthReturnUrl(searchParams.get("callbackUrl"), false);
+    if (returnUrl) {
+      params.set("callbackUrl", returnUrl);
+    }
     router.push(`/register/create?${params}`);
   }
 
@@ -178,22 +183,22 @@ export function RegisterFlow() {
               transition={{ duration: 0.25 }}
             >
               <div className="text-center">
-                <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Tell us about you</h1>
-                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                <h1 className="text-2xl font-semibold text-slate-900">Tell us about you</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Are you signing up as an individual or a business?
                 </p>
               </div>
-              <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 {entityOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => chooseEntity(option.value)}
-                    className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-emerald-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:p-6"
+                    className="group rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-emerald-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                   >
-                    <option.icon className="h-8 w-8 text-emerald-600 transition group-hover:scale-105 sm:h-9 sm:w-9" />
-                    <h2 className="mt-3 text-base font-semibold text-slate-900 sm:mt-4 sm:text-lg">{option.title}</h2>
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 sm:mt-2 sm:text-sm">
+                    <option.icon className="h-9 w-9 text-emerald-600 transition group-hover:scale-105" />
+                    <h2 className="mt-4 text-lg font-semibold text-slate-900">{option.title}</h2>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
                       {option.description}
                     </p>
                   </button>
@@ -209,27 +214,27 @@ export function RegisterFlow() {
               transition={{ duration: 0.25 }}
             >
               <div className="text-center">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-600 sm:text-xs">
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">
                   {entityType === "COMPANY" ? "Business account" : "Individual account"}
                 </p>
-                <h1 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">
+                <h1 className="mt-2 text-2xl font-semibold text-slate-900">
                   How do you want to sign up?
                 </h1>
-                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Choose your role to continue to account details.
                 </p>
               </div>
-              <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 {roleOptions.map((role) => (
                   <button
                     key={role.value}
                     type="button"
                     onClick={() => chooseRole(role.value)}
-                    className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-emerald-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:p-5"
+                    className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-emerald-500 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                   >
-                    <role.icon className="h-7 w-7 text-emerald-600 sm:h-8 sm:w-8" />
-                    <h2 className="mt-2 text-sm font-semibold text-slate-900 sm:mt-3 sm:text-base">{role.title}</h2>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:mt-1.5 sm:text-sm">
+                    <role.icon className="h-8 w-8 text-emerald-600" />
+                    <h2 className="mt-3 text-base font-semibold text-slate-900">{role.title}</h2>
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
                       {role.description}
                     </p>
                   </button>
@@ -241,7 +246,10 @@ export function RegisterFlow() {
 
         <p className="mt-8 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-emerald-600 hover:underline">
+          <Link
+            href={buildLoginUrl(resolveAuthReturnUrl(searchParams.get("callbackUrl"), false))}
+            className="font-medium text-emerald-600 hover:underline"
+          >
             Sign in
           </Link>
         </p>

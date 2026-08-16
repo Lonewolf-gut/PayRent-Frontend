@@ -1,11 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,21 +25,30 @@ import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/pro
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
-import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
+import { useAuthReturnPath } from "@/hooks/use-auth-return-path";
+import { buildLoginUrl, buildRegisterUrl } from "@/lib/utils/auth-callback-url";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
+import { isEmploymentRecorded } from "@/lib/constants/employment-status";
 import { isSaleListing } from "@/lib/subscription-limits";
-import { isAccountFullyVerified } from "@/lib/utils/account-verification";
 import type { PropertyType } from "@prisma/client";
 import { toast } from "sonner";
+import {
+  extractSavedPropertyIds,
+  markSavedPropertyViewedAndSyncCount,
+} from "@/lib/nav/saved-property-views";
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const returnPath = useAuthReturnPath();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [locationOpen, setLocationOpen] = useState(false);
   const [depositPromptOpen, setDepositPromptOpen] = useState(false);
   const [moveInDate, setMoveInDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [amount, setAmount] = useState("");
+  const [months, setMonths] = useState("12");
 
   const { data: property, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -70,6 +79,16 @@ export default function PropertyDetailPage() {
     enabled: session?.user?.role === "BUYER",
   });
 
+  const { data: financingDocs } = useQuery({
+    queryKey: ["tenant-financing-docs"],
+    queryFn: async () => {
+      const res = await fetch("/api/buyer/financing-documents");
+      const json = await res.json();
+      return json.data;
+    },
+    enabled: session?.user?.role === "BUYER",
+  });
+
   const { data: applications } = useQuery({
     queryKey: ["applications"],
     queryFn: async () => {
@@ -78,8 +97,24 @@ export default function PropertyDetailPage() {
       return json.data ?? [];
     },
     enabled: session?.user?.role === "BUYER",
-    refetchOnMount: "always",
   });
+
+  const { data: savedItems = [] } = useQuery({
+    queryKey: ["saved-properties"],
+    queryFn: async () => {
+      const res = await fetch("/api/properties/saved");
+      const json = await res.json();
+      return json.success ? (json.data ?? []) : [];
+    },
+    enabled: session?.user?.role === "BUYER",
+  });
+
+  useEffect(() => {
+    if (!id || session?.user?.role !== "BUYER") return;
+    const propertyIds = extractSavedPropertyIds(savedItems);
+    if (!propertyIds.includes(id)) return;
+    markSavedPropertyViewedAndSyncCount(queryClient, propertyIds, id);
+  }, [id, queryClient, savedItems, session?.user?.role]);
 
   const chatMutation = useMutation({
     mutationFn: async ({
@@ -126,14 +161,17 @@ export default function PropertyDetailPage() {
       app.propertyId === id && app.status === "APPROVED"
   );
 
-  const propertyApplication = applications?.find(
-    (app: { propertyId: string }) => app.propertyId === id
+  const profileComplete = ["PROFILE_COMPLETED", "KYC_PENDING", "KYC_VERIFIED"].includes(
+    kycStatus?.profileStatus ?? ""
   );
-
-  const fullyVerified = isAccountFullyVerified(
-    kycStatus,
-    Boolean(session?.user?.emailVerified ?? kycStatus?.emailVerified),
-    Boolean(session?.user?.phoneVerified ?? kycStatus?.phoneVerified)
+  const financingReady = Boolean(
+    kycStatus?.kycVerified &&
+      kycStatus?.addressVerified &&
+      isEmploymentRecorded(
+        kycStatus?.employmentStatus,
+        profileComplete,
+        kycStatus?.employmentVerified
+      )
   );
 
   const displayAgent = property.contacts?.agent ?? property.agent;
@@ -141,7 +179,6 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-      <AgentReferralTracker />
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <PropertyImageGallery images={images} title={property.name} />
@@ -304,15 +341,18 @@ export default function PropertyDetailPage() {
                 purchasePrice={purchasePrice}
                 walletBalance={walletBalance}
                 monthlyRent={listPrice}
-                annualRent={property.annualRent ? Number(property.annualRent) : undefined}
                 propertyStatus={property.status}
-                fullyVerified={fullyVerified}
+                kycVerified={financingReady}
+                financingDocsApproved={Boolean(financingDocs?.allApproved)}
                 approvedApplication={approvedApplication}
-                propertyApplication={propertyApplication}
                 moveInDate={moveInDate}
                 setMoveInDate={setMoveInDate}
                 notes={notes}
                 setNotes={setNotes}
+                amount={amount}
+                setAmount={setAmount}
+                months={months}
+                setMonths={setMonths}
                 onDepositPrompt={() => setDepositPromptOpen(true)}
                 onChat={(recipientUserId, label) =>
                   chatMutation.mutate({ recipientUserId, label })
@@ -333,9 +373,14 @@ export default function PropertyDetailPage() {
                 <p className="mb-4 text-sm text-muted-foreground">
                   Sign in to buy with wallet, apply, or request financing for this listing.
                 </p>
-                <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
-                  <Link href="/login">Sign in</Link>
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
+                    <Link href={buildLoginUrl(returnPath, "BUYER")}>Sign in</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full rounded-none">
+                    <Link href={buildRegisterUrl(returnPath)}>Create account</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}

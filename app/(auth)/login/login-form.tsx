@@ -16,6 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getPostAuthRoute } from "@/lib/auth/post-auth-route";
 import { ADMIN_HOME_PATH, COMPLIANCE_HOME_PATH } from "@/lib/auth/route-guards";
+import {
+  buildRegisterUrl,
+  clearPersistedAuthReturnUrl,
+  persistAuthReturnUrl,
+  resolveAuthReturnUrl,
+  sanitizeCallbackUrl,
+} from "@/lib/utils/auth-callback-url";
 import { stripSensitiveQueryParams } from "@/lib/utils/api-message";
 import { getSignInErrorMessage } from "@/lib/utils/auth-toast-messages";
 import type { UserRole } from "@prisma/client";
@@ -69,6 +76,11 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
   useEffect(() => {
     stripSensitiveQueryParams();
   }, []);
+
+  useEffect(() => {
+    const safe = sanitizeCallbackUrl(rawCallbackUrl);
+    if (safe) persistAuthReturnUrl(safe);
+  }, [rawCallbackUrl]);
 
   useEffect(() => {
     if (!adminMode && !complianceMode) return;
@@ -174,11 +186,16 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
         return;
       }
 
+      const returnUrl = resolveAuthReturnUrl(rawCallbackUrl);
       const destination = getPostAuthRoute({
         role: session.user.role as UserRole,
         emailVerified: Boolean(session.user.emailVerified),
         phoneVerified: Boolean(session.user.phoneVerified),
+        returnUrl,
       });
+      if (returnUrl && destination === returnUrl) {
+        clearPersistedAuthReturnUrl();
+      }
       window.location.assign(destination);
       return;
     } catch (error) {
@@ -215,7 +232,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
-            className="h-11 bg-white text-slate-900 placeholder:text-slate-400"
+            className="h-11"
             {...register("email")}
           />
           {errors.email ? (
@@ -231,7 +248,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
               id="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
-              className="h-11 pr-10 bg-white text-slate-900 placeholder:text-slate-400"
+              className="h-11 pr-10"
               {...register("password")}
             />
             <button
@@ -257,7 +274,7 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              className="h-11 bg-white text-slate-900 placeholder:text-slate-400"
+              className="h-11"
               value={twoFaCode}
               onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="000000"
@@ -279,7 +296,10 @@ export default function LoginForm({ adminMode = false, complianceMode = false }:
           <>
             <p>
               Don&apos;t have an account?{" "}
-              <Link href="/register" className="font-medium text-emerald-600 hover:underline">
+              <Link
+                href={buildRegisterUrl(resolveAuthReturnUrl(rawCallbackUrl))}
+                className="font-medium text-emerald-600 hover:underline"
+              >
                 Register
               </Link>
             </p>

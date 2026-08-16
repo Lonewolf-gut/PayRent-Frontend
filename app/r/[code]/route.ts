@@ -10,10 +10,13 @@ export async function GET(
   const resolved = await resolveReferralRedirect(req, code);
 
   if (!resolved) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/referral/unavailable", req.url));
   }
 
   const destination = new URL(resolved.redirectPath, req.url);
+  if (resolved.code) {
+    destination.searchParams.set("ref", resolved.code);
+  }
   const response = NextResponse.redirect(destination);
 
   response.cookies.set(AGENT_REFERRAL_COOKIE, resolved.code, {

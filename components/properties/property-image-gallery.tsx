@@ -27,11 +27,18 @@ type PropertyImageGalleryProps = {
 };
 
 function imageSrc(image: GalleryImage) {
+  const raw = normalizeDbImageUrl(image.url);
+
+  // Storage keys/paths: always load via backend (reads R2 with server credentials).
+  if (image.id && raw && !/^data:/i.test(raw) && !/^https?:\/\//i.test(raw)) {
+    return propertyImageApiPath(image.id);
+  }
+
   return (
     image.src ??
     image.displayUrl ??
     resolvePropertyImageDisplayUrl(image) ??
-    normalizeDbImageUrl(image.url)
+    raw
   );
 }
 

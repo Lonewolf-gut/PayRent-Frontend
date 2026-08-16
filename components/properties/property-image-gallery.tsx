@@ -23,7 +23,7 @@ type PropertyImageGalleryProps = {
   title: string;
 };
 
-function gallerySrc(image: GalleryImage) {
+function imageSrc(image: GalleryImage) {
   return image.displayUrl || resolvePropertyImageDisplayUrl(image);
 }
 
@@ -36,24 +36,7 @@ function GalleryImg({
   alt: string;
   className?: string;
 }) {
-  const candidates = useMemo(() => {
-    const primary = gallerySrc(image);
-    const fallbacks: string[] = [];
-
-    if (image.id && primary !== `/api/files/property-image/${image.id}`) {
-      fallbacks.push(`/api/files/property-image/${image.id}`);
-    }
-
-    const raw = image.url?.trim();
-    if (raw && raw !== primary && !fallbacks.includes(raw)) {
-      fallbacks.push(raw);
-    }
-
-    return [primary, ...fallbacks].filter(Boolean);
-  }, [image]);
-
-  const [index, setIndex] = useState(0);
-  const src = candidates[index] ?? "";
+  const src = useMemo(() => imageSrc(image), [image]);
 
   if (!src) {
     return <div className={`bg-muted ${className ?? ""}`} />;
@@ -61,16 +44,7 @@ function GalleryImg({
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      onError={() => {
-        if (index < candidates.length - 1) {
-          setIndex((current) => current + 1);
-        }
-      }}
-    />
+    <img src={src} alt={alt} className={className} />
   );
 }
 

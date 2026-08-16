@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { getBackendApiBaseUrl } from "./lib/utils/backend-api-url";
 
 const lifecycle = process.env.npm_lifecycle_event ?? "";
 const isDevLifecycle =
@@ -6,6 +7,26 @@ const isDevLifecycle =
 const isProductionBuild = lifecycle === "build";
 const isWindowsDev = process.platform === "win32" && isDevLifecycle;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
+
+function uploadRemotePatterns() {
+  const backendUrl = getBackendApiBaseUrl();
+  if (!backendUrl) return [];
+
+  try {
+    const parsed = new URL(backendUrl);
+    const protocol = parsed.protocol.replace(":", "") as "http" | "https";
+    return [
+      {
+        protocol,
+        hostname: parsed.hostname,
+        ...(parsed.port ? { port: parsed.port } : {}),
+        pathname: "/uploads/**",
+      },
+    ];
+  } catch {
+    return [];
+  }
+}
 
 const nextConfig: NextConfig = {
   distDir: isDevLifecycle ? ".next-dev" : ".next",
@@ -19,7 +40,22 @@ const nextConfig: NextConfig = {
       ...(process.env.S3_PUBLIC_URL
         ? [{ protocol: "https" as const, hostname: new URL(process.env.S3_PUBLIC_URL).hostname }]
         : []),
+      ...uploadRemotePatterns(),
     ],
+  },
+  async rewrites() {
+    const backendUrl = getBackendApiBaseUrl();
+    if (!backendUrl) return [];
+
+    // Property/profile uploads are stored on PayRent-Backend (public/uploads).
+    return {
+      beforeFiles: [
+        {
+          source: "/uploads/:path*",
+          destination: `${backendUrl}/uploads/:path*`,
+        },
+      ],
+    };
   },
   async redirects() {
     return [

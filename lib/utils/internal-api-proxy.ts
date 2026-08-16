@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getBackendApiBaseUrl } from "@/lib/utils/backend-api-url";
+
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "keep-alive",
@@ -12,11 +14,7 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 function getInternalApiBaseUrl() {
-  const url =
-    process.env.INTERNAL_API_URL ??
-    process.env.API_URL ??
-    process.env.NEXT_PUBLIC_API_URL;
-  return url?.replace(/\/$/, "") ?? "";
+  return getBackendApiBaseUrl();
 }
 
 export function shouldProxyApiRequest(pathname: string) {

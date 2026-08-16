@@ -141,7 +141,7 @@ export default function PropertiesPage() {
             discountedPrice?: number | null;
             propertyType: string;
             isPremium: boolean;
-            images?: { url: string }[];
+            images?: { id?: string; url: string; displayUrl?: string | null; src?: string | null }[];
           }) => {
             const Icon = listingIcon(property.propertyType);
             const isSale = isSaleListing(property.propertyType as PropertyType);
@@ -157,6 +157,7 @@ export default function PropertiesPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={
+                        property.images[0].src ??
                         property.images[0].displayUrl ??
                         resolvePropertyImageDisplayUrl(property.images[0])
                       }

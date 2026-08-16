@@ -13,7 +13,7 @@ type SimilarProperty = {
   location: string;
   monthlyRent: unknown;
   discountedPrice?: unknown;
-  images?: { id?: string; url: string; alt?: string | null; displayUrl?: string | null }[];
+  images?: { id?: string; url: string; alt?: string | null; displayUrl?: string | null; src?: string | null }[];
 };
 
 export function SimilarPropertiesSection({ items }: { items: SimilarProperty[] }) {
@@ -36,7 +36,7 @@ export function SimilarPropertiesSection({ items }: { items: SimilarProperty[] }
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={image.displayUrl ?? resolvePropertyImageDisplayUrl(image)}
+                      src={image.src ?? image.displayUrl ?? resolvePropertyImageDisplayUrl(image)}
                       alt={image.alt ?? item.name}
                       className="h-full w-full object-cover"
                     />

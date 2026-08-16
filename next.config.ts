@@ -8,6 +8,37 @@ const isProductionBuild = lifecycle === "build";
 const isWindowsDev = process.platform === "win32" && isDevLifecycle;
 const turboFsCacheEnabled = process.env.TURBOPACK_FS_CACHE === "1";
 
+function cdnRemotePatterns() {
+  const urls = [
+    process.env.S3_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_S3_PUBLIC_URL,
+    process.env.NEXT_PUBLIC_CDN_URL,
+  ].filter(Boolean) as string[];
+
+  const patterns: Array<{
+    protocol: "https" | "http";
+    hostname: string;
+    port?: string;
+    pathname?: string;
+  }> = [];
+
+  for (const raw of urls) {
+    try {
+      const parsed = new URL(raw);
+      patterns.push({
+        protocol: parsed.protocol.replace(":", "") as "https" | "http",
+        hostname: parsed.hostname,
+        ...(parsed.port ? { port: parsed.port } : {}),
+        pathname: "/**",
+      });
+    } catch {
+      // ignore invalid URLs
+    }
+  }
+
+  return patterns;
+}
+
 function uploadRemotePatterns() {
   const backendUrl = getBackendApiBaseUrl();
   if (!backendUrl) return [];
@@ -37,9 +68,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
-      ...(process.env.S3_PUBLIC_URL
-        ? [{ protocol: "https" as const, hostname: new URL(process.env.S3_PUBLIC_URL).hostname }]
-        : []),
+      ...cdnRemotePatterns(),
       ...uploadRemotePatterns(),
     ],
   },

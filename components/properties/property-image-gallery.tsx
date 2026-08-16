@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  normalizeDbImageUrl,
+  propertyImageApiPath,
   resolvePropertyImageDisplayUrl,
   type PropertyImageRecord,
 } from "@/lib/utils/property-image-display";
@@ -16,6 +18,7 @@ import {
 type GalleryImage = PropertyImageRecord & {
   alt?: string | null;
   displayUrl?: string | null;
+  src?: string | null;
 };
 
 type PropertyImageGalleryProps = {
@@ -24,7 +27,18 @@ type PropertyImageGalleryProps = {
 };
 
 function imageSrc(image: GalleryImage) {
-  return image.displayUrl || resolvePropertyImageDisplayUrl(image);
+  return (
+    image.src ??
+    image.displayUrl ??
+    resolvePropertyImageDisplayUrl(image) ??
+    normalizeDbImageUrl(image.url)
+  );
+}
+
+function fallbackSrc(image: GalleryImage, primary: string) {
+  if (!image.id) return null;
+  const apiPath = propertyImageApiPath(image.id);
+  return primary === apiPath ? null : apiPath;
 }
 
 function GalleryImg({
@@ -36,7 +50,15 @@ function GalleryImg({
   alt: string;
   className?: string;
 }) {
-  const src = useMemo(() => imageSrc(image), [image]);
+  const primary = useMemo(() => imageSrc(image), [image]);
+  const [useFallback, setUseFallback] = useState(false);
+  const src = useMemo(() => {
+    if (!primary) return null;
+    if (useFallback) {
+      return fallbackSrc(image, primary) ?? primary;
+    }
+    return primary;
+  }, [image, primary, useFallback]);
 
   if (!src) {
     return <div className={`bg-muted ${className ?? ""}`} />;
@@ -44,7 +66,18 @@ function GalleryImg({
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={className} />
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        const next = fallbackSrc(image, primary);
+        if (next && !useFallback) {
+          setUseFallback(true);
+        }
+      }}
+    />
   );
 }
 
@@ -91,7 +124,7 @@ export function PropertyImageGallery({ images, title }: PropertyImageGalleryProp
               type="button"
               size="icon-sm"
               variant="secondary"
-              className="absolute right-2 top-1/2 z-[2] -translate-y-1/2 opacity-90"
+              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-90"
               onClick={goNext}
               aria-label="Next image"
             >

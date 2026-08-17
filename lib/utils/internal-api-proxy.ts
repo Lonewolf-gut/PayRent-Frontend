@@ -20,9 +20,31 @@ function getInternalApiBaseUrl() {
 export function shouldProxyApiRequest(pathname: string) {
   if (!getInternalApiBaseUrl()) return false;
   if (!pathname.startsWith("/api/")) return false;
-  // NextAuth stays on the frontend in split-repo setups.
-  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return false;
+
+  if (pathname.startsWith("/api/auth/")) {
+    return !isNextAuthRoute(pathname);
+  }
+
   return true;
+}
+
+/** NextAuth protocol routes must stay on the frontend in split-repo setups. */
+function isNextAuthRoute(pathname: string) {
+  const suffix = pathname.slice("/api/auth/".length);
+  if (!suffix) return true;
+
+  const [segment] = suffix.split("/");
+  if (segment === "callback") return true;
+
+  return (
+    segment === "session" ||
+    segment === "csrf" ||
+    segment === "signin" ||
+    segment === "signout" ||
+    segment === "providers" ||
+    segment === "error" ||
+    segment === "verify-request"
+  );
 }
 
 function forwardRequestHeaders(req: NextRequest) {

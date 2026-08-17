@@ -30,7 +30,6 @@ export const PROFILE_MENU_ITEMS: Record<UserRole, ProfileMenuItem[]> = {
     { href: "/dashboard/marketer/listings", label: "My Listings" },
     { href: "/dashboard/marketer/wallet", label: "Wallet" },
     { href: SUBSCRIPTION_ROUTES.MARKETER, label: "Subscription" },
-    { href: "/dashboard/marketer/applications", label: "Applications" },
     { href: "/dashboard/marketer/settings", label: "Settings" },
     { href: "/dashboard/marketer/kyc", label: "Profile & KYC" },
   ],

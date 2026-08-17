@@ -20,14 +20,21 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { DocumentCaptureInput } from "@/components/shared/document-capture-input";
-import { UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
+import { KYC_DOCUMENT_LABELS, UTILITY_BILL_LABELS } from "@/lib/constants/financing-docs";
 import {
   EMPLOYMENT_STATUS_OPTIONS,
   getEmploymentStatusLabel,
   isEmploymentRecorded,
   requiresEmploymentDocuments,
 } from "@/lib/constants/employment-status";
+import { SecureFileLink } from "@/components/shared/secure-file-link";
+import { KycDocumentUploadField } from "@/components/dashboard/kyc-document-upload-field";
+import {
+  ID_DOCUMENT_FORMATS,
+  SSNIT_NUMBER_FORMAT,
+  validateIdentityDocumentNumber,
+  validateSsnitNumber,
+} from "@/lib/constants/identity-document-formats";
 import { toast } from "sonner";
 
 const PROFILE_COMPLETE_STATUSES = new Set([
@@ -76,10 +83,8 @@ function applyStatusToForm(
   setEmploymentStatus((status.employmentStatus as EmploymentStatusValue) ?? "");
   setProfile({
     dateOfBirth: (status.dateOfBirth as string) ?? "",
-    occupation:
-      (status.occupation as string) ?? (status.lenderType as string) ?? "",
-    employerName:
-      (status.employerName as string) ?? (status.institutionName as string) ?? "",
+    occupation: (status.occupation as string) ?? "",
+    employerName: (status.employerName as string) ?? "",
     monthlyIncome:
       status.monthlyIncome != null ? String(status.monthlyIncome) : "",
     residentialAddress: (status.residentialAddress as string) ?? "",
@@ -107,11 +112,11 @@ const DOCUMENT_LABELS: Record<DocumentType, string> = {
   DRIVERS_LICENSE: "Driver's licence",
 };
 
-const ID_PLACEHOLDERS: Record<DocumentType, string> = {
-  GHANA_CARD: "GHA-123456789-1",
-  VOTER_ID: "1234567890",
-  PASSPORT: "G1234567",
-  DRIVERS_LICENSE: "V1234567",
+type KycDocument = {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileUrl: string;
 };
 
 export function UserKycForm({
@@ -149,11 +154,9 @@ export function UserKycForm({
   const [companyRegistration, setCompanyRegistration] = useState<File | null>(null);
   const [companyTin, setCompanyTin] = useState<File | null>(null);
   const [ssnitDocument, setSsnitDocument] = useState<File | null>(null);
+  const [employmentLetter, setEmploymentLetter] = useState<File | null>(null);
   const [staffIdDocument, setStaffIdDocument] = useState<File | null>(null);
   const [addressProof, setAddressProof] = useState<File | null>(null);
-  const [gpsLocation, setGpsLocation] = useState<{ latitude: number; longitude: number } | null>(
-    null
-  );
   const [billType, setBillType] = useState<
     "ELECTRICITY" | "WATER" | "LANDLINE" | "INTERNET"
   >("ELECTRICITY");
@@ -190,15 +193,23 @@ export function UserKycForm({
         if (profile.companyTin.trim()) payload.companyTin = profile.companyTin;
       } else {
         payload.employmentStatus = employmentStatus;
-        payload.dateOfBirth = profile.dateOfBirth || undefined;
-        payload.occupation = profile.occupation.trim() || undefined;
-        payload.employerName = profile.employerName.trim() || undefined;
+        if (profile.dateOfBirth) payload.dateOfBirth = profile.dateOfBirth;
+        if (profile.occupation.trim()) payload.occupation = profile.occupation;
+        if (profile.employerName.trim()) payload.employerName = profile.employerName;
         if (profile.monthlyIncome.trim()) {
           payload.monthlyIncome = Number(profile.monthlyIncome);
         }
-        payload.residentialAddress = profile.residentialAddress.trim() || undefined;
-        payload.staffId = profile.staffId.trim() || undefined;
-        payload.ssnitNumber = profile.ssnitNumber.trim() || undefined;
+        if (profile.residentialAddress.trim()) {
+          payload.residentialAddress = profile.residentialAddress;
+        }
+        if (profile.staffId.trim() && employmentStatus === "EMPLOYED") {
+          payload.staffId = profile.staffId;
+        }
+        if (profile.ssnitNumber.trim() && employmentStatus === "EMPLOYED") {
+          const ssnitError = validateSsnitNumber(profile.ssnitNumber);
+          if (ssnitError) throw new Error(ssnitError);
+          payload.ssnitNumber = profile.ssnitNumber.trim();
+        }
       }
 
       const res = await fetch("/api/kyc", {
@@ -236,9 +247,12 @@ export function UserKycForm({
       if (profile.occupation.trim()) {
         formData.append("occupation", profile.occupation);
       }
-      if (!staffIdDocument || !ssnitDocument) {
-        throw new Error("Staff ID card and SSNIT card are required.");
+      if (!employmentLetter || !staffIdDocument || !ssnitDocument) {
+        throw new Error("Employment letter, staff ID document, and SSNIT document are required.");
       }
+      const ssnitError = validateSsnitNumber(profile.ssnitNumber);
+      if (ssnitError) throw new Error(ssnitError);
+      formData.append("employmentLetter", employmentLetter);
       formData.append("staffIdDocument", staffIdDocument);
       formData.append("ssnitDocument", ssnitDocument);
 
@@ -252,6 +266,7 @@ export function UserKycForm({
     },
     onSuccess: async (json) => {
       toast.success(json.message ?? "Employment documents submitted");
+      setEmploymentLetter(null);
       setStaffIdDocument(null);
       setSsnitDocument(null);
       await queryClient.invalidateQueries({ queryKey: ["kyc-status"] });
@@ -277,10 +292,6 @@ export function UserKycForm({
       formData.append("address", address);
       formData.append("billType", billType);
       formData.append("addressProof", addressProof);
-      if (gpsLocation) {
-        formData.append("latitude", String(gpsLocation.latitude));
-        formData.append("longitude", String(gpsLocation.longitude));
-      }
 
       const res = await fetch("/api/kyc/address/submit", {
         method: "POST",
@@ -322,15 +333,11 @@ export function UserKycForm({
         if (!identity.idNumber.trim()) {
           throw new Error("Enter your ID number before submitting.");
         }
-        if (identity.idNumber.trim().length < 3) {
-          throw new Error("ID number must be at least 3 characters.");
-        }
-        if (
-          identity.documentType === "GHANA_CARD" &&
-          !/^GHA-\d{9}-\d$/.test(identity.idNumber.trim())
-        ) {
-          throw new Error("Ghana Card number must match GHA-XXXXXXXXX-X.");
-        }
+        const idError = validateIdentityDocumentNumber(
+          identity.documentType,
+          identity.idNumber
+        );
+        if (idError) throw new Error(idError);
         if (identity.documentType === "DRIVERS_LICENSE" && !identity.dateOfBirth) {
           throw new Error("Date of birth is required for driver's licence verification.");
         }
@@ -385,6 +392,13 @@ export function UserKycForm({
   const identityVerified = Boolean(status?.kycVerified);
   const employmentVerified = Boolean(status?.employmentVerified);
   const addressVerified = Boolean(status?.addressVerified);
+  const submittedDocuments: KycDocument[] =
+    status?.kycDocuments ??
+    status?.verifications?.flatMap(
+      (v: { documents?: KycDocument[] }) => v.documents ?? []
+    ) ??
+    [];
+
   if (isLoading) {
     return <p className="text-muted-foreground">Loading verification status...</p>;
   }
@@ -565,18 +579,14 @@ export function UserKycForm({
                         ? "School / course"
                         : employmentStatus === "SELF_EMPLOYED"
                           ? "Business / trade"
-                          : employmentStatus === "RETIRED"
-                            ? "Previous profession"
-                            : "Occupation"}
+                          : "Occupation"}
                     </Label>
-                    {employmentStatus !== "UNEMPLOYED" ? (
-                      <Input
-                        value={profile.occupation}
-                        onChange={(e) =>
-                          setProfile({ ...profile, occupation: e.target.value })
-                        }
-                      />
-                    ) : null}
+                    <Input
+                      value={profile.occupation}
+                      onChange={(e) =>
+                        setProfile({ ...profile, occupation: e.target.value })
+                      }
+                    />
                   </div>
                   {employmentStatus === "EMPLOYED" || employmentStatus === "SELF_EMPLOYED" ? (
                     <div>
@@ -634,11 +644,13 @@ export function UserKycForm({
                           onChange={(e) =>
                             setProfile({ ...profile, ssnitNumber: e.target.value })
                           }
-                          placeholder="Enter your SSNIT membership number"
+                          placeholder={SSNIT_NUMBER_FORMAT.placeholder}
+                          maxLength={SSNIT_NUMBER_FORMAT.exactLength}
                         />
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Required for employed users. You will also submit an SSNIT registration
-                          document in the employment verification step.
+                          Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter +
+                          12 digits). You will also upload your SSNIT document in the employment
+                          verification step.
                         </p>
                       </div>
                     </>
@@ -664,7 +676,7 @@ export function UserKycForm({
                 <p className="text-base font-medium">Employment verification</p>
                 <p className="text-sm font-normal text-muted-foreground">
                   {needsEmploymentDocuments
-                    ? "Submit your staff ID card and SSNIT card for admin review."
+                    ? "Submit your employment letter, staff ID, and SSNIT document for admin review."
                     : "Your employment status is recorded on your profile. Document upload is only required if you are employed."}
                 </p>
               </div>
@@ -687,18 +699,63 @@ export function UserKycForm({
           <AccordionContent className="px-0 pb-6">
             {needsEmploymentDocuments ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              <DocumentCaptureInput
-                label="Staff ID card"
-                disabled={employmentVerified || employmentPending}
-                value={staffIdDocument}
-                onChange={setStaffIdDocument}
-              />
-              <DocumentCaptureInput
-                label="SSNIT card"
-                disabled={employmentVerified || employmentPending}
-                value={ssnitDocument}
-                onChange={setSsnitDocument}
-              />
+              <div className="sm:col-span-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+                Status: {getEmploymentStatusLabel(employmentStatus)}
+                {profile.employerName ? ` · ${profile.employerName}` : ""}
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Staff ID number</Label>
+                <Input
+                  value={profile.staffId}
+                  onChange={(e) =>
+                    setProfile({ ...profile, staffId: e.target.value })
+                  }
+                  disabled={employmentVerified || employmentPending}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>SSNIT number</Label>
+                <Input
+                  value={profile.ssnitNumber}
+                  onChange={(e) =>
+                    setProfile({ ...profile, ssnitNumber: e.target.value })
+                  }
+                  placeholder={SSNIT_NUMBER_FORMAT.placeholder}
+                  maxLength={SSNIT_NUMBER_FORMAT.exactLength}
+                  disabled={employmentVerified || employmentPending}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Must be exactly {SSNIT_NUMBER_FORMAT.exactLength} characters (1 letter + 12
+                  digits).
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Employment letter</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  disabled={employmentVerified || employmentPending}
+                  onChange={(e) => setEmploymentLetter(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Staff ID document</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  disabled={employmentVerified || employmentPending}
+                  onChange={(e) => setStaffIdDocument(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>SSNIT registration document</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  disabled={employmentVerified || employmentPending}
+                  onChange={(e) => setSsnitDocument(e.target.files?.[0] ?? null)}
+                />
+              </div>
               <Button
                 className="sm:col-span-2 bg-emerald-600 hover:bg-emerald-700"
                 disabled={
@@ -706,8 +763,8 @@ export function UserKycForm({
                   employmentPending ||
                   employmentMutation.isPending ||
                   !profileComplete ||
-                  !staffIdDocument ||
-                  !ssnitDocument
+                  !profile.staffId.trim() ||
+                  !profile.ssnitNumber.trim()
                 }
                 onClick={() => employmentMutation.mutate()}
               >
@@ -771,6 +828,20 @@ export function UserKycForm({
           <AccordionContent className="px-0 pb-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
+                <Label>{isCompany ? "Registered business address" : "Residential address"}</Label>
+                <Input
+                  value={
+                    isCompany ? profile.companyRegisteredAddress : profile.residentialAddress
+                  }
+                  readOnly
+                  disabled
+                  className="bg-muted/40"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Update this in the profile section above, then submit your bill here.
+                </p>
+              </div>
+              <div className="sm:col-span-2">
                 <Label>Bill type</Label>
                 <Select
                   value={billType}
@@ -792,47 +863,12 @@ export function UserKycForm({
                 </Select>
               </div>
               <div className="sm:col-span-2">
-                <Label>GPS location</Label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={addressVerified || addressPending}
-                    onClick={() => {
-                      if (!navigator.geolocation) {
-                        toast.error("GPS is not supported on this device.");
-                        return;
-                      }
-                      navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                          setGpsLocation({
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude,
-                          });
-                          toast.success("GPS location captured");
-                        },
-                        () => toast.error("Unable to capture GPS location.")
-                      );
-                    }}
-                  >
-                    Capture GPS location
-                  </Button>
-                  {gpsLocation ? (
-                    <p className="text-xs text-muted-foreground">
-                      {gpsLocation.latitude.toFixed(6)}, {gpsLocation.longitude.toFixed(6)}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">No GPS location captured yet</p>
-                  )}
-                </div>
-              </div>
-              <div className="sm:col-span-2">
-                <DocumentCaptureInput
-                  label="Address proof document"
+                <Label>Address proof document</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
                   disabled={addressVerified || addressPending}
-                  value={addressProof}
-                  onChange={setAddressProof}
+                  onChange={(e) => setAddressProof(e.target.files?.[0] ?? null)}
                 />
               </div>
               <Button
@@ -939,13 +975,18 @@ export function UserKycForm({
                 <div>
                   <Label>{DOCUMENT_LABELS[identity.documentType]} number</Label>
                   <Input
-                    placeholder={ID_PLACEHOLDERS[identity.documentType]}
+                    placeholder={ID_DOCUMENT_FORMATS[identity.documentType].placeholder}
                     value={identity.idNumber}
+                    maxLength={ID_DOCUMENT_FORMATS[identity.documentType].exactLength}
                     onChange={(e) =>
                       setIdentity({ ...identity, idNumber: e.target.value })
                     }
                     disabled={identityVerified || verificationPending}
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Must be exactly {ID_DOCUMENT_FORMATS[identity.documentType].exactLength}{" "}
+                    characters.
+                  </p>
                 </div>
                 <div>
                   <Label>Full name (as on ID)</Label>
@@ -970,31 +1011,50 @@ export function UserKycForm({
                     />
                   </div>
                 ) : null}
-                <DocumentCaptureInput
-                  label="ID front photo"
-                  accept="image/*"
-                  disabled={identityVerified || verificationPending}
-                  value={idFront}
-                  onChange={setIdFront}
-                />
-                <DocumentCaptureInput
-                  label="ID back photo"
-                  accept="image/*"
-                  disabled={identityVerified || verificationPending}
-                  value={idBack}
-                  onChange={setIdBack}
-                />
-                <div className="sm:col-span-2">
-                  <DocumentCaptureInput
-                    label="Face photo (selfie)"
+                <div>
+                  <KycDocumentUploadField
+                    label="Upload ID front photo"
                     accept="image/*"
                     disabled={identityVerified || verificationPending}
-                    value={facePhoto}
+                    file={idFront}
+                    onChange={setIdFront}
+                  />
+                </div>
+                <div>
+                  <KycDocumentUploadField
+                    label="Upload ID back photo"
+                    accept="image/*"
+                    disabled={identityVerified || verificationPending}
+                    file={idBack}
+                    onChange={setIdBack}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <KycDocumentUploadField
+                    label="Upload face photo (selfie)"
+                    accept="image/*"
+                    disabled={identityVerified || verificationPending}
+                    file={facePhoto}
                     onChange={setFacePhoto}
                   />
                 </div>
               </div>
             )}
+
+            {submittedDocuments.length > 0 ? (
+              <div className="mt-4 space-y-2 rounded-lg border p-3">
+                <p className="text-sm font-medium">Submitted documents</p>
+                {submittedDocuments.map((doc) => (
+                  <SecureFileLink
+                    key={doc.id}
+                    request={{ scope: "kyc", documentId: doc.id }}
+                    className="block text-sm text-emerald-600 hover:underline"
+                  >
+                    {KYC_DOCUMENT_LABELS[doc.documentType] ?? doc.documentType}: {doc.fileName}
+                  </SecureFileLink>
+                ))}
+              </div>
+            ) : null}
 
             <Button
               className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 sm:w-auto"

@@ -439,12 +439,22 @@ export default function UserSettingsForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "enable" }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(getApiErrorMessage(json));
-      const otpauthUrl = json.data.otpauthUrl as string | undefined;
-      const secret = json.data.secret as string | undefined;
-      setTwoFaOtpauthUrl(otpauthUrl ?? null);
-      setTwoFaSecret(secret ?? null);
+      const json = await readApiJson(res);
+      if (!res.ok || !json.success) {
+        throw new Error(
+          getApiErrorMessage(
+            json,
+            "Could not start 2FA setup. Confirm the backend is running and ENCRYPTION_KEY is set."
+          )
+        );
+      }
+      const otpauthUrl = json.data?.otpauthUrl as string | undefined;
+      const secret = json.data?.secret as string | undefined;
+      if (!otpauthUrl || !secret) {
+        throw new Error("2FA setup did not return a QR code. Try again in a moment.");
+      }
+      setTwoFaOtpauthUrl(otpauthUrl);
+      setTwoFaSecret(secret);
       setTwoFaPending(true);
       setTwoFaToken("");
       setTwoFaDialogOpen(true);
@@ -475,8 +485,10 @@ export default function UserSettingsForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "verify", token: twoFaToken }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(getApiErrorMessage(json));
+      const json = await readApiJson(res);
+      if (!res.ok || !json.success) {
+        throw new Error(getApiErrorMessage(json, "Invalid or expired authenticator code."));
+      }
       setTwoFactorEnabled(true);
       setTwoFaPending(false);
       setTwoFaOtpauthUrl(null);
@@ -504,8 +516,10 @@ export default function UserSettingsForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "disable", token: twoFaToken }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(getApiErrorMessage(json));
+      const json = await readApiJson(res);
+      if (!res.ok || !json.success) {
+        throw new Error(getApiErrorMessage(json, "Could not turn off 2FA. Check your code and try again."));
+      }
       setTwoFactorEnabled(false);
       setTwoFaPending(false);
       setTwoFaToken("");

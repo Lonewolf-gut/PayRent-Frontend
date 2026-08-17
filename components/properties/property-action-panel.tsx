@@ -64,7 +64,7 @@ export function PropertyActionPanel({
   });
 
   const usesCheckout = Boolean(paymentConfig?.usesCheckoutForListings);
-  const financingRequestUrl = `/dashboard/buyer/financing/request?propertyId=${encodeURIComponent(propertyId)}`;
+  const financingRequestUrl = `/dashboard/buyer/applications?propertyId=${encodeURIComponent(propertyId)}&intent=financing`;
 
   const applyMutation = useMutation({
     mutationFn: async () => {
@@ -179,24 +179,16 @@ export function PropertyActionPanel({
             Request Pay-for-Me financing
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {isSale
-              ? "Pay over time with lender-backed hire-purchase instead of paying in full today."
-              : "Apply for pay-for-me rental financing with admin and lender approval."}
+            Opens your applications page to submit details. Approvals run in order: merchant →
+            admin → lender.
           </p>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            You will complete the request on your dashboard. It then moves through admin review,
-            mandate setup, lender approval, and repayment scheduling.
-          </p>
+        <CardContent>
           <Button
             asChild
             className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
           >
-            <Link href={financingRequestUrl}>Request Pay-for-Me financing</Link>
-          </Button>
-          <Button asChild variant="outline" className="w-full rounded-none">
-            <Link href="/dashboard/buyer/financing">View my financing requests</Link>
+            <Link href={financingRequestUrl}>Submit Pay-for-Me financing</Link>
           </Button>
         </CardContent>
       </Card>

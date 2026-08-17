@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
 import { FinancingRequestDialog } from "@/components/applications/financing-request-dialog";
-import { getFinancingStatusLabel } from "@/lib/financing/request-pipeline";
+import {
+  buildRequestPipeline,
+  getCurrentApproverLabel,
+  getFinancingStatusLabel,
+} from "@/lib/financing/request-pipeline";
 
 function ApplicationsContent() {
   const router = useRouter();
@@ -55,13 +59,22 @@ function ApplicationsContent() {
     },
   });
 
+  const { data: financingDocs } = useQuery({
+    queryKey: ["tenant-financing-docs"],
+    queryFn: async () => {
+      const res = await fetch("/api/buyer/financing-documents");
+      const json = await res.json();
+      return json.data;
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Applications & Pay-for-Me requests</h1>
           <p className="text-muted-foreground">
-            Track your property applications and financing request status.
+            Track your property applications and Pay-for-Me status as each party reviews in order.
           </p>
         </div>
         <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
@@ -101,6 +114,15 @@ function ApplicationsContent() {
               const financing = financingRequests.find(
                 (req: { propertyId: string }) => req.propertyId === app.propertyId
               );
+              const pipeline = buildRequestPipeline({
+                applicationStatus: app.status,
+                financingStatus: financing?.status,
+                financingDocsApproved: Boolean(financingDocs?.allApproved),
+                kycVerified: true,
+              });
+              const waitingLabel = getCurrentApproverLabel(pipeline);
+              const hasActiveFinancing =
+                financing && financing.status !== "CREATED";
 
               return (
                 <Card key={app.id} className="rounded-none">
@@ -123,14 +145,19 @@ function ApplicationsContent() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {financing ? (
+                    <p className="text-sm font-medium text-emerald-900">{waitingLabel}</p>
+                    {hasActiveFinancing ? (
                       <p className="text-sm text-muted-foreground">
-                        Pay-for-Me request submitted — status updates appear here as your request
-                        is reviewed.
+                        Pay-for-Me request in progress — stops before your bank mandate is sent.
+                      </p>
+                    ) : financing?.status === "CREATED" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Request queued — waiting for merchant and admin approvals before eligibility
+                        review.
                       </p>
                     ) : app.status === "APPROVED" ? (
                       <p className="text-sm text-muted-foreground">
-                        Application approved — submit your Pay-for-Me financing request.
+                        Application approved — complete your Pay-for-Me request.
                       </p>
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -138,7 +165,7 @@ function ApplicationsContent() {
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2">
-                      {!financing ? (
+                      {!hasActiveFinancing ? (
                         <Button
                           asChild
                           size="sm"

@@ -85,10 +85,9 @@ export default function AdminFinancingDemoPage() {
           </Button>
           <h1 className="text-2xl font-bold">Financing demo walkthrough</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Simulate the full pay-for-me pipeline without a live bank partner: eligibility → mandate
-            → lender offer → disbursement → delivery → repayment schedule. Use demo accounts from
-            seed (buyer tenant@payforme.com, lender lender@payforme.com, merchant
-            landlord@payforme.com).
+            Advance queued requests through admin eligibility review. The demo stops at mandate
+            pending — before anything is sent to the bank. Use demo accounts from seed (buyer
+            tenant@payforme.com, merchant landlord@payforme.com).
           </p>
         </div>
       </div>
@@ -175,7 +174,10 @@ export default function AdminFinancingDemoPage() {
                     size="sm"
                     className="rounded-none bg-emerald-600 hover:bg-emerald-700"
                     disabled={
-                      advanceMutation.isPending || walkthrough.status === "REPAYMENT_ACTIVE"
+                      advanceMutation.isPending ||
+                      walkthrough.status === "MANDATE_PENDING" ||
+                      walkthrough.status === "CREATED" ||
+                      walkthrough.status === "REPAYMENT_ACTIVE"
                     }
                     onClick={() => advanceMutation.mutate("step")}
                   >
@@ -187,7 +189,10 @@ export default function AdminFinancingDemoPage() {
                     variant="outline"
                     className="rounded-none"
                     disabled={
-                      advanceMutation.isPending || walkthrough.status === "REPAYMENT_ACTIVE"
+                      advanceMutation.isPending ||
+                      walkthrough.status === "MANDATE_PENDING" ||
+                      walkthrough.status === "CREATED" ||
+                      walkthrough.status === "REPAYMENT_ACTIVE"
                     }
                     onClick={() => advanceMutation.mutate("full")}
                   >

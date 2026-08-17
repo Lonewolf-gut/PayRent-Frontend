@@ -106,7 +106,8 @@ export function FinancingRequestDialog({
   });
 
   const existingFinancing = financingRequests.find(
-    (req: { propertyId: string }) => req.propertyId === propertyId
+    (req: { propertyId: string; status: string }) =>
+      req.propertyId === propertyId && req.status !== "CREATED"
   );
 
   const isSale = property ? isSaleListing(property.propertyType as PropertyType) : false;
@@ -190,25 +191,12 @@ export function FinancingRequestDialog({
         }
       }
 
-      const appsRes = await fetch("/api/applications");
-      const appsJson = await appsRes.json();
-      const refreshedApps = (appsJson.data ?? []) as ApplicationRecord[];
-      const approvedApp = refreshedApps.find(
-        (app) => app.propertyId === propertyId && app.status === "APPROVED"
-      );
-
-      if (!approvedApp) {
-        throw new Error(
-          "Your application was submitted. You can submit Pay-for-Me financing once the merchant approves it."
-        );
-      }
-
       const financeRes = await fetch("/api/financing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId,
-          applicationId: approvedApp.id,
+          applicationId: application?.id,
           requestedAmount: parseFloat(amount),
           durationMonths: parseInt(months, 10),
           monthlyIncome: monthlyIncome ? parseFloat(monthlyIncome) : undefined,
@@ -436,8 +424,9 @@ export function FinancingRequestDialog({
             <CheckCircle2 className="mb-2 size-12 text-emerald-600" />
             <DialogTitle>Financing request submitted</DialogTitle>
             <DialogDescription>
-              Your Pay-for-Me request for {submittedPropertyName} has been submitted. Track its
-              status in your applications list.
+              Your Pay-for-Me request for {submittedPropertyName} has been submitted. The merchant
+              and admin will review it in order — track progress in your applications list. The
+              process stops before your bank mandate is sent.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center">

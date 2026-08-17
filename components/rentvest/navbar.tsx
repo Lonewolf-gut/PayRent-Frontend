@@ -159,19 +159,6 @@ export function Navbar() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {session?.user ? (
             <>
-              {role === "BUYER" ? (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="border-emerald-200 px-2 text-emerald-800 hover:bg-emerald-50 sm:px-3"
-                >
-                  <Link href="/dashboard/buyer/applications">
-                    <span className="sm:hidden">Status</span>
-                    <span className="hidden sm:inline">Request status</span>
-                  </Link>
-                </Button>
-              ) : null}
               <NavQuickActions />
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger

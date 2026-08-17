@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ function listingIcon(type: string) {
 }
 
 export default function PropertiesPage() {
+  const { data: session } = useSession();
+  const isBuyer = session?.user?.role === "BUYER";
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<"ALL" | PropertyCategory>("ALL");
   const [propertyType, setPropertyType] = useState("ALL");
@@ -71,10 +74,19 @@ export default function PropertiesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Browse listings</h1>
-        <p className="mt-2 text-muted-foreground">
-          Find houses, rooms, cars, and home appliances — apply for rental financing
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Browse listings</h1>
+            <p className="mt-2 text-muted-foreground">
+              Find houses, rooms, cars, and home appliances — apply for rental financing
+            </p>
+          </div>
+          {isBuyer ? (
+            <Button asChild className="shrink-0 bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/dashboard/buyer/applications">View request statuses</Link>
+            </Button>
+          ) : null}
+        </div>
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_220px]">
           <Input
             placeholder="Search by location, name, or keyword..."

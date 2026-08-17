@@ -143,7 +143,7 @@ export function FinancingRequestForm({
             Upload your payslip and bank statement for admin review before submitting Pay-for-Me.
           </p>
           <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
-            <Link href="/dashboard/buyer/financing-documents">Upload financing documents</Link>
+            <Link href="/dashboard/buyer/financing">Manage financing applications</Link>
           </Button>
         </div>
       ) : null}

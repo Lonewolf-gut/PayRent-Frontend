@@ -14,6 +14,7 @@ export function buildRequestPipeline(input: {
   financingDocsApproved?: boolean;
   kycVerified?: boolean;
   isSale?: boolean;
+  hasFinancingRequest?: boolean;
 }): RequestPipelineStep[] {
   const appStatus = input.applicationStatus ?? null;
   const finStatus = input.financingStatus ?? null;
@@ -46,7 +47,7 @@ export function buildRequestPipeline(input: {
       id: "financing-docs",
       label: "Financing documents",
       approver: "Administrator",
-      status: !appApproved
+      status: !input.hasFinancingRequest
         ? "upcoming"
         : input.financingDocsApproved
           ? "complete"
@@ -59,12 +60,15 @@ export function buildRequestPipeline(input: {
       id: "submit-financing",
       label: "Submit Pay-for-Me request",
       approver: "You (Customer)",
-      status:
-        !appApproved || !input.financingDocsApproved
-          ? "upcoming"
-          : !finStatus
+      status: !input.hasFinancingRequest
+        ? "upcoming"
+        : finStatus && finStatus !== "CREATED"
+          ? "complete"
+          : input.financingDocsApproved && appApproved
             ? "current"
-            : "complete",
+            : input.hasFinancingRequest
+              ? "complete"
+              : "upcoming",
       description: "Enter amount, repayment period, and submit for eligibility review.",
     },
     {

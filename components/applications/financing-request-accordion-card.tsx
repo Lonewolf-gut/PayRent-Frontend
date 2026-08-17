@@ -31,6 +31,18 @@ import {
 import { toast } from "sonner";
 import type { TenantFinancingDocType } from "@prisma/client";
 
+type RequestDocumentBundle = {
+  financingRequestId?: string;
+  allApproved?: boolean;
+  canReplace?: boolean;
+  documents?: Array<{
+    id: string;
+    documentType: TenantFinancingDocType;
+    status: string;
+    fileName: string;
+  }>;
+};
+
 type FinancingRequestAccordionCardProps = {
   application: {
     id: string;
@@ -46,14 +58,7 @@ type FinancingRequestAccordionCardProps = {
     durationMonths: number;
     repaymentPreference?: { bankAccountId?: string } | null;
   } | null;
-  financingDocs?: {
-    allApproved?: boolean;
-    documents?: Array<{
-      documentType: TenantFinancingDocType;
-      status: string;
-      fileName: string;
-    }>;
-  };
+  financingDocs?: RequestDocumentBundle | null;
 };
 
 function displayListingName(name?: string) {
@@ -73,6 +78,15 @@ export function canEditFinancingRequest(
   );
 }
 
+export function canReplaceFinancingDocuments(
+  applicationStatus: string,
+  financingDocs?: RequestDocumentBundle | null
+) {
+  if (applicationStatus === "REJECTED") return false;
+  if (financingDocs?.canReplace === false) return false;
+  return applicationStatus !== "APPROVED";
+}
+
 export function FinancingRequestAccordionCard({
   application,
   financing,
@@ -83,32 +97,58 @@ export function FinancingRequestAccordionCard({
   const [months, setMonths] = useState(String(financing?.durationMonths ?? 12));
   const [docFiles, setDocFiles] = useState<Partial<Record<TenantFinancingDocType, File>>>({});
 
+  const financingRequestId = financing?.id ?? financingDocs?.financingRequestId;
   const pipeline = buildRequestPipeline({
     applicationStatus: application.status,
     financingStatus: financing?.status,
     financingDocsApproved: Boolean(financingDocs?.allApproved),
     kycVerified: true,
+    hasFinancingRequest: Boolean(financingRequestId),
   });
   const waitingLabel = getCurrentApproverLabel(pipeline);
   const editable = canEditFinancingRequest(application.status, financing?.status);
+  const replaceableDocs = canReplaceFinancingDocuments(application.status, financingDocs);
   const isRejected =
     application.status === "REJECTED" || financing?.status === "REJECTED";
 
+  const removeDocMutation = useMutation({
+    mutationFn: async (documentType: TenantFinancingDocType) => {
+      if (!financingRequestId) throw new Error("Financing request not found.");
+      const res = await fetch(
+        `/api/financing/${financingRequestId}/documents?documentType=${documentType}`,
+        { method: "DELETE" }
+      );
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? "Could not remove document");
+    },
+    onSuccess: () => {
+      toast.success("Document removed");
+      queryClient.invalidateQueries({ queryKey: ["buyer-financing-documents"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const updateMutation = useMutation({
     mutationFn: async () => {
-      if (!editable) throw new Error("This request can no longer be edited.");
+      if (!editable && !replaceableDocs) {
+        throw new Error("This request can no longer be edited.");
+      }
+      if (!financingRequestId) throw new Error("Financing request not found.");
 
       for (const [type, file] of Object.entries(docFiles) as [TenantFinancingDocType, File][]) {
         if (!file) continue;
         const formData = new FormData();
         formData.append("documentType", type);
         formData.append("document", file);
-        const res = await fetch("/api/buyer/financing-documents", { method: "POST", body: formData });
+        const res = await fetch(`/api/financing/${financingRequestId}/documents`, {
+          method: "POST",
+          body: formData,
+        });
         const json = await res.json();
         if (!json.success) throw new Error(json.message ?? "Document upload failed");
       }
 
-      if (financing?.status === "CREATED" || !financing) {
+      if (editable && (financing?.status === "CREATED" || !financing)) {
         const res = await fetch("/api/financing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -117,7 +157,9 @@ export function FinancingRequestAccordionCard({
             applicationId: application.id,
             requestedAmount: parseFloat(amount),
             durationMonths: parseInt(months, 10),
-            repaymentPreference: financing?.repaymentPreference ?? { preferredChannel: "BANK_MANDATE" },
+            repaymentPreference: financing?.repaymentPreference ?? {
+              preferredChannel: "BANK_MANDATE",
+            },
             dataProcessingConsent: true,
           }),
         });
@@ -130,7 +172,7 @@ export function FinancingRequestAccordionCard({
       setDocFiles({});
       queryClient.invalidateQueries({ queryKey: ["applications"] });
       queryClient.invalidateQueries({ queryKey: ["financing"] });
-      queryClient.invalidateQueries({ queryKey: ["tenant-financing-docs"] });
+      queryClient.invalidateQueries({ queryKey: ["buyer-financing-documents"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -185,68 +227,97 @@ export function FinancingRequestAccordionCard({
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Attachments</p>
                 {(financingDocs?.documents ?? []).map((doc) => (
-                  <p key={doc.documentType} className="text-sm text-muted-foreground">
-                    {FINANCING_DOC_LABELS[doc.documentType]}: {doc.fileName} (
-                    {doc.status.toLowerCase()})
-                  </p>
+                  <div
+                    key={doc.documentType}
+                    className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground"
+                  >
+                    <span>
+                      {FINANCING_DOC_LABELS[doc.documentType]}: {doc.fileName} (
+                      {doc.status.toLowerCase()})
+                    </span>
+                    {replaceableDocs && doc.status !== "APPROVED" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-auto px-2 py-1 text-destructive"
+                        disabled={removeDocMutation.isPending}
+                        onClick={() => removeDocMutation.mutate(doc.documentType)}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
+                  </div>
                 ))}
                 {!financingDocs?.documents?.length ? (
                   <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
                 ) : null}
               </div>
 
-              {editable ? (
+              {editable || replaceableDocs ? (
                 <div className="space-y-3 rounded-none border border-dashed p-4">
-                  <p className="text-sm font-medium">Edit request</p>
-                  <div>
-                    <Label>Amount (GHS)</Label>
-                    <Input
-                      type="number"
-                      className="rounded-none"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Repayment period</Label>
-                    <Select value={months} onValueChange={setMonths}>
-                      <SelectTrigger className="rounded-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REPAYMENT_PERIOD_OPTIONS.map((option) => (
-                          <SelectItem key={option.months} value={String(option.months)}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {(["PAYSLIP", "BANK_STATEMENT"] as const).map((type) => {
-                    const existing = financingDocs?.documents?.find(
-                      (d) => d.documentType === type
-                    );
-                    if (existing?.status === "APPROVED") return null;
-                    return (
-                      <div key={type}>
-                        <Label>
-                          {type === "BANK_STATEMENT"
-                            ? "Replace bank statement (6–12 months)"
-                            : `Replace ${FINANCING_DOC_LABELS[type].toLowerCase()}`}
-                        </Label>
+                  <p className="text-sm font-medium">
+                    {editable ? "Edit request" : "Replace documents"}
+                  </p>
+                  {editable ? (
+                    <>
+                      <div>
+                        <Label>Amount (GHS)</Label>
                         <Input
-                          type="file"
-                          accept=".pdf,image/*"
+                          type="number"
                           className="rounded-none"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) setDocFiles((prev) => ({ ...prev, [type]: file }));
-                            e.target.value = "";
-                          }}
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
                         />
                       </div>
-                    );
-                  })}
+                      <div>
+                        <Label>Repayment period</Label>
+                        <Select value={months} onValueChange={setMonths}>
+                          <SelectTrigger className="rounded-none">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {REPAYMENT_PERIOD_OPTIONS.map((option) => (
+                              <SelectItem key={option.months} value={String(option.months)}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  ) : null}
+                  {replaceableDocs
+                    ? (["PAYSLIP", "BANK_STATEMENT"] as const).map((type) => {
+                        const existing = financingDocs?.documents?.find(
+                          (d) => d.documentType === type
+                        );
+                        if (existing?.status === "APPROVED") return null;
+                        return (
+                          <div key={type}>
+                            <Label>
+                              {existing
+                                ? type === "BANK_STATEMENT"
+                                  ? "Replace bank statement (6–12 months)"
+                                  : `Replace ${FINANCING_DOC_LABELS[type].toLowerCase()}`
+                                : type === "BANK_STATEMENT"
+                                  ? "Bank statement (6–12 months)"
+                                  : FINANCING_DOC_LABELS[type]}
+                            </Label>
+                            <Input
+                              type="file"
+                              accept=".pdf,image/*"
+                              className="rounded-none"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) setDocFiles((prev) => ({ ...prev, [type]: file }));
+                                e.target.value = "";
+                              }}
+                            />
+                          </div>
+                        );
+                      })
+                    : null}
                   <Button
                     size="sm"
                     className="rounded-none bg-emerald-600 hover:bg-emerald-700"
@@ -258,7 +329,7 @@ export function FinancingRequestAccordionCard({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Editing is locked once the next reviewer approves this step.
+                  Editing is locked once the merchant approves your application.
                 </p>
               )}
 

@@ -94,20 +94,6 @@ export function FinancingRequestDialog({
 
   const verifiedAccounts = (bankData?.bankAccounts ?? []).filter((a) => a.isVerified);
 
-  const { data: financingDocs } = useQuery({
-    queryKey: ["tenant-financing-docs"],
-    queryFn: async () => {
-      const res = await fetch("/api/buyer/financing-documents");
-      const json = await res.json();
-      return json.data as {
-        allApproved: boolean;
-        requiredTypes: TenantFinancingDocType[];
-        documents: Array<{ documentType: TenantFinancingDocType; status: string; fileName?: string }>;
-      };
-    },
-    enabled: open,
-  });
-
   const { data: applications = [] } = useQuery({
     queryKey: ["applications"],
     queryFn: async () => {
@@ -157,10 +143,7 @@ export function FinancingRequestDialog({
     }
   }, [verifiedAccounts, bankAccountId]);
 
-  const requiredDocTypes = financingDocs?.requiredTypes ?? ["PAYSLIP", "BANK_STATEMENT"];
-  const docsByType = new Map(
-    (financingDocs?.documents ?? []).map((doc) => [doc.documentType, doc])
-  );
+  const requiredDocTypes: TenantFinancingDocType[] = ["PAYSLIP", "BANK_STATEMENT"];
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -201,36 +184,11 @@ export function FinancingRequestDialog({
         application = json.data as ApplicationRecord;
       }
 
-      const missingUploads = requiredDocTypes.filter((type) => {
-        const existing = docsByType.get(type);
-        const hasPendingOrApproved =
-          existing?.status === "APPROVED" || existing?.status === "PENDING";
-        return !hasPendingOrApproved && !docFiles[type];
-      });
-
+      const missingUploads = requiredDocTypes.filter((type) => !docFiles[type]);
       if (missingUploads.length > 0) {
         throw new Error(
           `Upload: ${missingUploads.map((t) => FINANCING_DOC_LABELS[t]).join(", ")}`
         );
-      }
-
-      for (const type of requiredDocTypes) {
-        const existing = docsByType.get(type);
-        if (existing?.status === "APPROVED" || existing?.status === "PENDING") continue;
-        const file = docFiles[type];
-        if (!file) continue;
-
-        const formData = new FormData();
-        formData.append("documentType", type);
-        formData.append("document", file);
-        const uploadRes = await fetch("/api/buyer/financing-documents", {
-          method: "POST",
-          body: formData,
-        });
-        const uploadJson = await uploadRes.json();
-        if (!uploadJson.success) {
-          throw new Error(uploadJson.message ?? uploadJson.error ?? "Document upload failed");
-        }
       }
 
       const financeRes = await fetch("/api/financing", {
@@ -261,12 +219,34 @@ export function FinancingRequestDialog({
         );
       }
 
+      const financingRequestId = financeJson.data?.id as string;
+      if (!financingRequestId) {
+        throw new Error("Financing request could not be created.");
+      }
+
+      for (const type of requiredDocTypes) {
+        const file = docFiles[type];
+        if (!file) continue;
+
+        const formData = new FormData();
+        formData.append("documentType", type);
+        formData.append("document", file);
+        const uploadRes = await fetch(`/api/financing/${financingRequestId}/documents`, {
+          method: "POST",
+          body: formData,
+        });
+        const uploadJson = await uploadRes.json();
+        if (!uploadJson.success) {
+          throw new Error(uploadJson.message ?? uploadJson.error ?? "Document upload failed");
+        }
+      }
+
       return property?.name as string;
     },
     onSuccess: (propertyName) => {
       queryClient.invalidateQueries({ queryKey: ["applications"] });
       queryClient.invalidateQueries({ queryKey: ["financing"] });
-      queryClient.invalidateQueries({ queryKey: ["tenant-financing-docs"] });
+      queryClient.invalidateQueries({ queryKey: ["buyer-financing-documents"] });
       onOpenChange(false);
       setSubmittedPropertyName(propertyName ?? "this listing");
       setConfirmOpen(true);
@@ -429,40 +409,31 @@ export function FinancingRequestDialog({
 
               <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-medium">Supporting documents</p>
-                {requiredDocTypes.map((type) => {
-                  const existing = docsByType.get(type);
-                  const uploaded = existing?.status === "APPROVED" || existing?.status === "PENDING";
-                  return (
-                    <div key={type} className="space-y-2">
-                      <Label htmlFor={`fin-doc-${type}`}>
-                        {type === "BANK_STATEMENT"
-                          ? "Bank statement (6–12 months)"
-                          : FINANCING_DOC_LABELS[type]}
-                        {uploaded ? ` — ${existing?.status?.toLowerCase()}` : ""}
-                      </Label>
-                      {!uploaded ? (
-                        <Input
-                          id={`fin-doc-${type}`}
-                          type="file"
-                          accept=".pdf,image/*"
-                          className="rounded-none"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) setDocFiles((prev) => ({ ...prev, [type]: file }));
-                            e.target.value = "";
-                          }}
-                        />
-                      ) : existing?.fileName ? (
-                        <p className="text-xs text-muted-foreground">Uploaded: {existing.fileName}</p>
-                      ) : null}
-                      {docFiles[type] ? (
-                        <p className="text-xs text-muted-foreground">
-                          Selected: {docFiles[type]?.name}
-                        </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                {requiredDocTypes.map((type) => (
+                  <div key={type} className="space-y-2">
+                    <Label htmlFor={`fin-doc-${type}`}>
+                      {type === "BANK_STATEMENT"
+                        ? "Bank statement (6–12 months)"
+                        : FINANCING_DOC_LABELS[type]}
+                    </Label>
+                    <Input
+                      id={`fin-doc-${type}`}
+                      type="file"
+                      accept=".pdf,image/*"
+                      className="rounded-none"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setDocFiles((prev) => ({ ...prev, [type]: file }));
+                        e.target.value = "";
+                      }}
+                    />
+                    {docFiles[type] ? (
+                      <p className="text-xs text-muted-foreground">
+                        Selected: {docFiles[type]?.name}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
               </div>
 
               <label className="flex items-start gap-2 text-sm">

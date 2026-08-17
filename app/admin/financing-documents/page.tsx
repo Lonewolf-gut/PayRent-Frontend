@@ -24,8 +24,34 @@ type FinancingDocRow = {
   fileName: string;
   fileUrl: string;
   status: string;
-  tenantId: string;
+};
+
+type FinancingRequestReviewRow = {
+  financingRequestId: string;
+  requestedAmount: string | number;
+  durationMonths: number;
+  financingStatus: string;
+  pendingCount: number;
+  property: { id: string; name: string; location: string };
+  application: { id: string; status: string } | null;
+  bankAccount: {
+    bankName: string;
+    accountName: string;
+    accountNumberMasked?: string | null;
+    isVerified: boolean;
+  } | null;
+  repaymentPreference: { mandateDebitConsent?: boolean } | null;
+  documents: FinancingDocRow[];
+  approvedHistory: Array<{
+    id: string;
+    documentType: TenantFinancingDocType;
+    fileName: string;
+    status: string;
+    reviewedAt?: string | null;
+    financingRequest: { property: { name: string }; createdAt: string };
+  }>;
   kycSummary: {
+    tenantId: string;
     fullName: string;
     email: string;
     phone?: string | null;
@@ -38,52 +64,26 @@ type FinancingDocRow = {
   };
 };
 
-type TenantDocGroup = {
-  tenantId: string;
-  summary: FinancingDocRow["kycSummary"];
-  documents: FinancingDocRow[];
-  pendingCount: number;
-};
-
-function groupDocsByTenant(docs: FinancingDocRow[]): TenantDocGroup[] {
-  const groups = new Map<string, TenantDocGroup>();
-
-  for (const doc of docs) {
-    const existing = groups.get(doc.tenantId);
-    if (existing) {
-      existing.documents.push(doc);
-      if (doc.status === "PENDING") existing.pendingCount += 1;
-      continue;
-    }
-
-    groups.set(doc.tenantId, {
-      tenantId: doc.tenantId,
-      summary: doc.kycSummary,
-      documents: [doc],
-      pendingCount: doc.status === "PENDING" ? 1 : 0,
-    });
-  }
-
-  return Array.from(groups.values()).sort((a, b) =>
-    a.summary.fullName.localeCompare(b.summary.fullName)
-  );
-}
-
 export default function AdminFinancingDocumentsPage() {
   const queryClient = useQueryClient();
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading } = useQuery({
     queryKey: ["admin-financing-docs"],
     queryFn: async () => {
       const res = await fetch("/api/admin/financing-documents?status=PENDING");
       const json = await res.json();
-      return (json.data ?? []) as FinancingDocRow[];
+      return (json.data ?? []) as FinancingRequestReviewRow[];
     },
   });
 
-  const grouped = useMemo(() => groupDocsByTenant(docs), [docs]);
-  const selectedGroup = grouped.find((group) => group.tenantId === selectedTenantId) ?? null;
+  const pendingRows = useMemo(
+    () => rows.filter((row) => row.pendingCount > 0),
+    [rows]
+  );
+
+  const selectedRow =
+    pendingRows.find((row) => row.financingRequestId === selectedRequestId) ?? null;
 
   const reviewMutation = useMutation({
     mutationFn: async ({
@@ -111,45 +111,45 @@ export default function AdminFinancingDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Customer financing documents</h1>
+        <h1 className="text-2xl font-bold">Financing application documents</h1>
         <p className="text-muted-foreground">
-          Review payslips and bank statements grouped by Customer. Each profile shows linked KYC
-          verification status and previously approved identity documents.
+          Review payslips, bank statements, and repayment mandate details for each Pay-for-Me
+          request. Approved documents are kept on the customer&apos;s history.
         </p>
       </div>
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : !grouped.length ? (
+      ) : !pendingRows.length ? (
         <p className="text-muted-foreground">No pending documents.</p>
       ) : (
         <Card className="rounded-none">
           <CardContent className="divide-y p-0">
-            {grouped.map((group) => (
+            {pendingRows.map((row) => (
               <button
-                key={group.tenantId}
+                key={row.financingRequestId}
                 type="button"
-                onClick={() => setSelectedTenantId(group.tenantId)}
+                onClick={() => setSelectedRequestId(row.financingRequestId)}
                 className="flex w-full items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-muted/40"
               >
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="truncate font-medium">{group.summary.fullName}</p>
+                  <p className="truncate font-medium">{row.kycSummary.fullName}</p>
                   <p className="text-sm text-muted-foreground">
-                    {group.summary.email}
-                    {group.summary.phone ? ` · ${group.summary.phone}` : ""}
+                    {row.property.name.replace(/^\[Demo\]\s*/i, "")} · GHS{" "}
+                    {Number(row.requestedAmount).toLocaleString()} · {row.durationMonths} months
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {group.documents
+                    {row.documents
                       .map((doc) => FINANCING_DOC_LABELS[doc.documentType])
                       .join(" · ")}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <Badge variant={group.summary.kycVerified ? "default" : "secondary"}>
-                    {group.summary.kycVerified ? "KYC verified" : "KYC pending"}
+                  <Badge variant={row.kycSummary.kycVerified ? "default" : "secondary"}>
+                    {row.kycSummary.kycVerified ? "KYC verified" : "KYC pending"}
                   </Badge>
                   <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                    {group.pendingCount} pending
+                    {row.pendingCount} pending
                   </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -160,62 +160,83 @@ export default function AdminFinancingDocumentsPage() {
       )}
 
       <Sheet
-        open={Boolean(selectedGroup)}
+        open={Boolean(selectedRow)}
         onOpenChange={(open) => {
-          if (!open) setSelectedTenantId(null);
+          if (!open) setSelectedRequestId(null);
         }}
       >
         <SheetContent side="right" variant="wide" className="gap-0 p-0">
-          {selectedGroup ? (
+          {selectedRow ? (
             <>
               <SheetHeader className="border-b border-border px-6 py-5 pr-14">
-                <SheetTitle>{selectedGroup.summary.fullName}</SheetTitle>
+                <SheetTitle>{selectedRow.kycSummary.fullName}</SheetTitle>
                 <SheetDescription>
-                  {selectedGroup.summary.email}
-                  {selectedGroup.summary.phone ? ` · ${selectedGroup.summary.phone}` : ""}
+                  {selectedRow.property.name.replace(/^\[Demo\]\s*/i, "")} ·{" "}
+                  {selectedRow.kycSummary.email}
+                  {selectedRow.kycSummary.phone ? ` · ${selectedRow.kycSummary.phone}` : ""}
                 </SheetDescription>
               </SheetHeader>
 
               <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-none border border-border bg-card p-3 text-sm">
+                    <p className="font-medium">Application</p>
+                    <p className="text-muted-foreground">
+                      {selectedRow.application?.status ?? "Not linked"}
+                    </p>
+                  </div>
+                  <div className="rounded-none border border-border bg-card p-3 text-sm">
+                    <p className="font-medium">Financing request</p>
+                    <p className="text-muted-foreground">{selectedRow.financingStatus}</p>
+                  </div>
+                  <div className="rounded-none border border-border bg-card p-3 text-sm">
+                    <p className="font-medium">Repayment mandate</p>
+                    <p className="text-muted-foreground">
+                      {selectedRow.repaymentPreference?.mandateDebitConsent
+                        ? "Debit consent given"
+                        : "No consent recorded"}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedRow.bankAccount ? (
+                  <div className="rounded-none border border-border bg-muted/20 p-4 text-sm">
+                    <p className="font-medium">Repayment bank account</p>
+                    <p className="text-muted-foreground">
+                      {selectedRow.bankAccount.bankName} ·{" "}
+                      {selectedRow.bankAccount.accountNumberMasked ?? "****"} ·{" "}
+                      {selectedRow.bankAccount.accountName}
+                      {selectedRow.bankAccount.isVerified ? " · verified" : ""}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-none border border-border bg-card p-3 text-sm">
                     <p className="font-medium">Identity</p>
                     <p className="text-muted-foreground">
-                      {selectedGroup.summary.kycVerified ? "Verified" : "Not verified"}
+                      {selectedRow.kycSummary.kycVerified ? "Verified" : "Not verified"}
                     </p>
                   </div>
                   <div className="rounded-none border border-border bg-card p-3 text-sm">
                     <p className="font-medium">Employment</p>
                     <p className="text-muted-foreground">
-                      {selectedGroup.summary.employmentVerified ? "Verified" : "Pending"}
+                      {selectedRow.kycSummary.employmentVerified ? "Verified" : "Pending"}
                     </p>
                   </div>
                   <div className="rounded-none border border-border bg-card p-3 text-sm">
                     <p className="font-medium">Address</p>
                     <p className="text-muted-foreground">
-                      {selectedGroup.summary.addressVerified ? "Verified" : "Pending"}
+                      {selectedRow.kycSummary.addressVerified ? "Verified" : "Pending"}
                     </p>
                   </div>
                 </div>
 
-                {selectedGroup.summary.verifications.length ? (
+                {selectedRow.kycSummary.kycDocuments.length ? (
                   <div className="space-y-2">
-                    <p className="font-medium">Verification history</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {selectedGroup.summary.verifications.map((item) => (
-                        <li key={item.id}>
-                          {item.type} · {item.status}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {selectedGroup.summary.kycDocuments.length ? (
-                  <div className="space-y-2">
-                    <p className="font-medium">Previous KYC documents</p>
+                    <p className="font-medium">KYC documents</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {selectedGroup.summary.kycDocuments.map((doc) => (
+                      {selectedRow.kycSummary.kycDocuments.map((doc) => (
                         <SecureFileLink
                           key={doc.id}
                           request={{ scope: "kyc", documentId: doc.id }}
@@ -230,9 +251,12 @@ export default function AdminFinancingDocumentsPage() {
                 ) : null}
 
                 <div className="space-y-4">
-                  <p className="font-medium">Financing submissions</p>
-                  {selectedGroup.documents.map((doc) => (
-                    <div key={doc.id} className="space-y-3 rounded-none border border-border bg-muted/20 p-4">
+                  <p className="font-medium">Documents for this request</p>
+                  {selectedRow.documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="space-y-3 rounded-none border border-border bg-muted/20 p-4"
+                    >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="font-medium">{FINANCING_DOC_LABELS[doc.documentType]}</p>
@@ -281,6 +305,28 @@ export default function AdminFinancingDocumentsPage() {
                     </div>
                   ))}
                 </div>
+
+                {selectedRow.approvedHistory.length ? (
+                  <div className="space-y-3">
+                    <p className="font-medium">Previously approved documents</p>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      {selectedRow.approvedHistory.slice(0, 8).map((doc) => (
+                        <li key={doc.id} className="flex flex-wrap items-center gap-2">
+                          <span>
+                            {FINANCING_DOC_LABELS[doc.documentType]} · {doc.fileName} ·{" "}
+                            {doc.financingRequest.property.name.replace(/^\[Demo\]\s*/i, "")}
+                          </span>
+                          <SecureFileLink
+                            request={{ scope: "financing", documentId: doc.id }}
+                            className="text-emerald-600 hover:underline dark:text-emerald-400"
+                          >
+                            View
+                          </SecureFileLink>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             </>
           ) : null}

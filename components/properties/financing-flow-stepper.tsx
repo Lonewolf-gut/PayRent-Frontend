@@ -104,7 +104,7 @@ export function buildFinancingFlowSteps(input: {
         : input.hasApprovedApplication
           ? "current"
           : "upcoming",
-      href: input.financingDocsApproved ? undefined : "/dashboard/buyer/financing-documents",
+      href: input.financingDocsApproved ? undefined : "/dashboard/buyer/financing",
     },
     {
       id: "submit",

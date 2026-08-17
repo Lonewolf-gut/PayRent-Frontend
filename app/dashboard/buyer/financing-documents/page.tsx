@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function FinancingDocumentsRedirectPage() {
-  redirect("/dashboard/buyer/applications");
+export default function TenantFinancingDocumentsPage() {
+  redirect("/dashboard/buyer/financing");
 }

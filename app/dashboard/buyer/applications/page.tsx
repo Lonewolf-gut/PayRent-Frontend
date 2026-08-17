@@ -25,12 +25,12 @@ export default function TenantApplicationsPage() {
     },
   });
 
-  const { data: financingDocs } = useQuery({
-    queryKey: ["tenant-financing-docs"],
+  const { data: financingDocBundles = [] } = useQuery({
+    queryKey: ["buyer-financing-documents"],
     queryFn: async () => {
       const res = await fetch("/api/buyer/financing-documents");
       const json = await res.json();
-      return json.data;
+      return json.data ?? [];
     },
   });
 
@@ -38,13 +38,13 @@ export default function TenantApplicationsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Pay-for-Me requests</h1>
+          <h1 className="text-2xl font-bold">Financing applications</h1>
           <p className="text-muted-foreground">
-            Your financing requests are managed on the Pay-for-Me dashboard.
+            Your Pay-for-Me requests are managed on the financing applications dashboard.
           </p>
         </div>
         <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
-          <Link href="/dashboard/buyer/financing">Go to Pay-for-Me</Link>
+          <Link href="/dashboard/buyer/financing">Go to financing applications</Link>
         </Button>
       </div>
 
@@ -70,12 +70,29 @@ export default function TenantApplicationsPage() {
               const financing = financingRequests.find(
                 (req: { propertyId: string }) => req.propertyId === app.propertyId
               );
+              const financingDocs =
+                financingDocBundles.find(
+                  (bundle: { propertyId?: string; applicationId?: string; financingRequestId?: string }) =>
+                    bundle.applicationId === app.id ||
+                    bundle.propertyId === app.propertyId ||
+                    (financing?.id && bundle.financingRequestId === financing.id)
+                ) ?? null;
               return (
                 <FinancingRequestAccordionCard
                   key={app.id}
                   application={app}
                   financing={financing ?? null}
-                  financingDocs={financingDocs}
+                  financingDocs={
+                    financingDocs
+                      ? {
+                          ...financingDocs,
+                          financingRequestId:
+                            financingDocs.financingRequestId ?? financing?.id,
+                        }
+                      : financing
+                        ? { financingRequestId: financing.id, documents: [], canReplace: true }
+                        : null
+                  }
                 />
               );
             }

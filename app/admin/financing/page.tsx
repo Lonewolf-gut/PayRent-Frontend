@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,6 @@ import { FINANCING_STATUS_LABELS } from "@/constants/platform";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LenderTagPanel } from "@/components/admin/lender-tag-panel";
 
 export default function AdminFinancingPage() {
   const queryClient = useQueryClient();
@@ -58,6 +58,9 @@ export default function AdminFinancingPage() {
         <p className="text-sm text-muted-foreground">
           {data?.pendingCount ?? 0} pending review · {data?.total ?? 0} in current filter
         </p>
+        <Button asChild size="sm" variant="outline" className="mt-3 rounded-none">
+          <Link href="/admin/financing/demo">Open financing demo walkthrough</Link>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-2">
         {[
@@ -113,19 +116,11 @@ export default function AdminFinancingPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               {r.investment?.lender?.user?.email ? (
-                <p>Funded by: {r.investment.lender.user.email}</p>
-              ) : r.lenderTags?.length ? (
-                <p>
-                  Tagged lenders:{" "}
-                  {r.lenderTags
-                    .map((t: { lender: { user: { email: string } } }) => t.lender.user.email)
-                    .join(", ")}
-                </p>
+                <p>Lender: {r.investment.lender.user.email}</p>
               ) : (
-                <p>Open to all lenders — no tags yet</p>
+                <p>Awaiting lender assignment</p>
               )}
               <p>Submitted {new Date(r.createdAt).toLocaleString()}</p>
-              <LenderTagPanel financingRequestId={r.id} status={r.status} />
               {r.status === "ELIGIBILITY_PENDING" ? (
                 <div className="space-y-3 border-t pt-4">
                   <div>

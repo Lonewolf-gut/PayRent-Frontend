@@ -32,15 +32,13 @@ const navItems = [
 
   { href: "/admin/financing", label: "Financing", icon: "TrendingUp" as const },
 
+  { href: "/admin/financing/demo", label: "Financing demo", icon: "BarChart3" as const },
+
   { href: "/admin/settlements", label: "Settlements", icon: "DollarSign" as const },
 
   { href: "/admin/withdrawals", label: "Withdrawals", icon: "Wallet" as const },
 
-  { href: "/admin/deposits", label: "Deposits", icon: "Wallet" as const },
-
   { href: "/admin/transactions", label: "Transactions", icon: "DollarSign" as const },
-
-  { href: "/admin/audit-logs", label: "Audit logs", icon: "FileText" as const },
 
   { href: "/admin/fraud", label: "Fraud & Security", icon: "Shield" as const },
 

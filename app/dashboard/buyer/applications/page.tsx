@@ -1,24 +1,41 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { APPLICATION_STATUS_LABELS } from "@/constants/platform";
-import { BuyerFinancingRequestPanel } from "@/components/applications/buyer-financing-request-panel";
-import {
-  buildRequestPipeline,
-  getCurrentApproverLabel,
-  getFinancingStatusLabel,
-} from "@/lib/financing/request-pipeline";
+import { FinancingRequestDialog } from "@/components/applications/financing-request-dialog";
+import { getFinancingStatusLabel } from "@/lib/financing/request-pipeline";
 
 function ApplicationsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const propertyId = searchParams.get("propertyId") ?? "";
   const intent = searchParams.get("intent");
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const shouldOpenDialog = Boolean(propertyId && (intent === "financing" || intent === "payforme"));
+
+  const clearFinancingParams = useCallback(() => {
+    router.replace("/dashboard/buyer/applications");
+  }, [router]);
+
+  useEffect(() => {
+    if (shouldOpenDialog) {
+      setDialogOpen(true);
+    }
+  }, [shouldOpenDialog, propertyId]);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open && shouldOpenDialog) {
+      clearFinancingParams();
+    }
+  };
 
   const { data: applications, isLoading } = useQuery({
     queryKey: ["applications"],
@@ -38,15 +55,13 @@ function ApplicationsContent() {
     },
   });
 
-  const showCompose = Boolean(propertyId && (intent === "financing" || intent === "payforme"));
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Applications & Pay-for-Me requests</h1>
           <p className="text-muted-foreground">
-            Submit your application, then your Pay-for-Me request moves to each approver in order.
+            Track your property applications and financing request status.
           </p>
         </div>
         <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
@@ -54,16 +69,20 @@ function ApplicationsContent() {
         </Button>
       </div>
 
-      {showCompose ? <BuyerFinancingRequestPanel propertyId={propertyId} /> : null}
+      {propertyId ? (
+        <FinancingRequestDialog
+          propertyId={propertyId}
+          open={dialogOpen}
+          onOpenChange={handleDialogOpenChange}
+        />
+      ) : null}
 
       {isLoading ? (
         <p className="text-muted-foreground">Loading applications...</p>
       ) : !applications?.length ? (
         <Card className="rounded-none">
           <CardContent className="py-12 text-center text-muted-foreground">
-            {showCompose
-              ? "Complete the form above to start your Pay-for-Me request."
-              : "No applications yet. Browse a listing and choose Request Pay-for-Me financing."}
+            No applications yet. Browse a listing and choose Request Pay-for-Me financing.
           </CardContent>
         </Card>
       ) : (
@@ -82,12 +101,6 @@ function ApplicationsContent() {
               const financing = financingRequests.find(
                 (req: { propertyId: string }) => req.propertyId === app.propertyId
               );
-              const pipeline = buildRequestPipeline({
-                applicationStatus: app.status,
-                financingStatus: financing?.status,
-                financingDocsApproved: true,
-                kycVerified: true,
-              });
 
               return (
                 <Card key={app.id} className="rounded-none">
@@ -96,26 +109,36 @@ function ApplicationsContent() {
                       <CardTitle className="text-base">{app.property?.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{app.property?.location}</p>
                     </div>
-                    <StatusBadge
-                      status={app.status}
-                      label={APPLICATION_STATUS_LABELS[app.status] ?? app.status}
-                    />
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {getCurrentApproverLabel(pipeline)}
-                    </p>
-                    {financing ? (
-                      <p className="text-sm">
-                        Pay-for-Me:{" "}
+                    <div className="flex flex-col items-end gap-2">
+                      <StatusBadge
+                        status={app.status}
+                        label={APPLICATION_STATUS_LABELS[app.status] ?? app.status}
+                      />
+                      {financing ? (
                         <StatusBadge
                           status={financing.status}
                           label={getFinancingStatusLabel(financing.status) ?? financing.status}
                         />
+                      ) : null}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {financing ? (
+                      <p className="text-sm text-muted-foreground">
+                        Pay-for-Me request submitted — status updates appear here as your request
+                        is reviewed.
                       </p>
-                    ) : null}
+                    ) : app.status === "APPROVED" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Application approved — submit your Pay-for-Me financing request.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Waiting for merchant to review your application.
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-2">
-                      {app.status === "APPROVED" && !financing ? (
+                      {!financing ? (
                         <Button
                           asChild
                           size="sm"
@@ -124,15 +147,16 @@ function ApplicationsContent() {
                           <Link
                             href={`/dashboard/buyer/applications?propertyId=${encodeURIComponent(app.propertyId)}&intent=financing`}
                           >
-                            Continue Pay-for-Me request
+                            {app.status === "APPROVED"
+                              ? "Submit Pay-for-Me request"
+                              : "Continue Pay-for-Me request"}
                           </Link>
                         </Button>
-                      ) : null}
-                      {financing ? (
+                      ) : (
                         <Button asChild size="sm" variant="outline" className="rounded-none">
-                          <Link href="/dashboard/buyer/financing">View financing status</Link>
+                          <Link href="/dashboard/buyer/financing">View financing details</Link>
                         </Button>
-                      ) : null}
+                      )}
                     </div>
                   </CardContent>
                 </Card>

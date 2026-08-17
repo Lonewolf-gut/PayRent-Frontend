@@ -29,7 +29,6 @@ import { PropertyActionPanel } from "@/components/properties/property-action-pan
 import { useAuthReturnPath } from "@/hooks/use-auth-return-path";
 import { buildLoginUrl, buildRegisterUrl } from "@/lib/utils/auth-callback-url";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
-import { isEmploymentRecorded } from "@/lib/constants/employment-status";
 import { isSaleListing } from "@/lib/subscription-limits";
 import type { PropertyType } from "@prisma/client";
 import { toast } from "sonner";
@@ -46,10 +45,6 @@ export default function PropertyDetailPage() {
   const { data: session } = useSession();
   const [locationOpen, setLocationOpen] = useState(false);
   const [depositPromptOpen, setDepositPromptOpen] = useState(false);
-  const [moveInDate, setMoveInDate] = useState("");
-  const [notes, setNotes] = useState("");
-  const [amount, setAmount] = useState("");
-  const [months, setMonths] = useState("12");
 
   const { data: property, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -60,14 +55,6 @@ export default function PropertyDetailPage() {
     },
   });
 
-  useEffect(() => {
-    if (!property) return;
-    const defaultAmount = isSaleListing(property.propertyType as PropertyType)
-      ? Number(property.discountedPrice ?? property.monthlyRent)
-      : Number(property.monthlyRent);
-    setAmount(String(defaultAmount));
-  }, [property?.id, property?.monthlyRent, property?.discountedPrice, property?.propertyType]);
-
   const { data: wallet } = useQuery({
     queryKey: ["wallet"],
     queryFn: async () => {
@@ -76,36 +63,6 @@ export default function PropertyDetailPage() {
       return json.data;
     },
     enabled: !!session?.user && session.user.role === "BUYER",
-  });
-
-  const { data: kycStatus } = useQuery({
-    queryKey: ["kyc-status"],
-    queryFn: async () => {
-      const res = await fetch("/api/kyc");
-      const json = await res.json();
-      return json.data;
-    },
-    enabled: session?.user?.role === "BUYER",
-  });
-
-  const { data: financingDocs } = useQuery({
-    queryKey: ["tenant-financing-docs"],
-    queryFn: async () => {
-      const res = await fetch("/api/buyer/financing-documents");
-      const json = await res.json();
-      return json.data;
-    },
-    enabled: session?.user?.role === "BUYER",
-  });
-
-  const { data: applications } = useQuery({
-    queryKey: ["applications"],
-    queryFn: async () => {
-      const res = await fetch("/api/applications");
-      const json = await res.json();
-      return json.data ?? [];
-    },
-    enabled: session?.user?.role === "BUYER",
   });
 
   const { data: savedItems = [] } = useQuery({
@@ -165,24 +122,6 @@ export default function PropertyDetailPage() {
     ? formatDistanceToNow(new Date(property.stats.listedAt), { addSuffix: true })
     : formatDistanceToNow(new Date(property.createdAt), { addSuffix: true });
 
-  const approvedApplication = applications?.find(
-    (app: { propertyId: string; status: string }) =>
-      app.propertyId === id && app.status === "APPROVED"
-  );
-
-  const profileComplete = ["PROFILE_COMPLETED", "KYC_PENDING", "KYC_VERIFIED"].includes(
-    kycStatus?.profileStatus ?? ""
-  );
-  const financingReady = Boolean(
-    kycStatus?.kycVerified &&
-      kycStatus?.addressVerified &&
-      isEmploymentRecorded(
-        kycStatus?.employmentStatus,
-        profileComplete,
-        kycStatus?.employmentVerified
-      )
-  );
-
   const displayAgent = property.contacts?.agent ?? property.agent;
   const displayLandlord = property.contacts?.landlord;
   const userRole = session?.user?.role;
@@ -198,23 +137,10 @@ export default function PropertyDetailPage() {
   const buyerActionPanel = (
     <PropertyActionPanel
       propertyId={id}
-      propertyName={property.name}
       isSale={isSale}
       purchasePrice={purchasePrice}
       walletBalance={walletBalance}
-      monthlyRent={listPrice}
       propertyStatus={property.status}
-      kycVerified={financingReady}
-      financingDocsApproved={Boolean(financingDocs?.allApproved)}
-      approvedApplication={approvedApplication}
-      moveInDate={moveInDate}
-      setMoveInDate={setMoveInDate}
-      notes={notes}
-      setNotes={setNotes}
-      amount={amount}
-      setAmount={setAmount}
-      months={months}
-      setMonths={setMonths}
       onDepositPrompt={() => setDepositPromptOpen(true)}
       onChat={(recipientUserId, label) =>
         chatMutation.mutate({ recipientUserId, label })

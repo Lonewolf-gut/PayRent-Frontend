@@ -60,6 +60,14 @@ export default function PropertyDetailPage() {
     },
   });
 
+  useEffect(() => {
+    if (!property) return;
+    const defaultAmount = isSaleListing(property.propertyType as PropertyType)
+      ? Number(property.discountedPrice ?? property.monthlyRent)
+      : Number(property.monthlyRent);
+    setAmount(String(defaultAmount));
+  }, [property?.id, property?.monthlyRent, property?.discountedPrice, property?.propertyType]);
+
   const { data: wallet } = useQuery({
     queryKey: ["wallet"],
     queryFn: async () => {

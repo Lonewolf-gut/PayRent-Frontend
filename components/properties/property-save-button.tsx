@@ -34,7 +34,7 @@ export function PropertySaveButton({
         (item: { propertyId: string }) => item.propertyId
       ) as string[];
     },
-    enabled: !!session?.user,
+    enabled: !!session?.user && session.user.role === "BUYER",
   });
 
   const isSaved = savedIds.includes(propertyId);

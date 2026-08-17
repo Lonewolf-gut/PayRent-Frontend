@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Eye, Bookmark, Phone, Mail } from "lucide-react";
 import { PropertySaveButton } from "@/components/properties/property-save-button";
+import { PropertyPromoteButton } from "@/components/properties/property-promote-button";
 import { PropertyImageGallery } from "@/components/properties/property-image-gallery";
 import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/properties/property-location-sheet";
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
@@ -176,6 +177,75 @@ export default function PropertyDetailPage() {
 
   const displayAgent = property.contacts?.agent ?? property.agent;
   const displayLandlord = property.contacts?.landlord;
+  const userRole = session?.user?.role;
+  const isBuyer = userRole === "BUYER";
+  const isMarketer = userRole === "MARKETER";
+  const promotionStatus = property.promotionStatus as
+    | "available"
+    | "yours"
+    | "claimed_by_other"
+    | null
+    | undefined;
+
+  const buyerActionPanel = (
+    <PropertyActionPanel
+      propertyId={id}
+      propertyName={property.name}
+      isSale={isSale}
+      purchasePrice={purchasePrice}
+      walletBalance={walletBalance}
+      monthlyRent={listPrice}
+      propertyStatus={property.status}
+      kycVerified={financingReady}
+      financingDocsApproved={Boolean(financingDocs?.allApproved)}
+      approvedApplication={approvedApplication}
+      moveInDate={moveInDate}
+      setMoveInDate={setMoveInDate}
+      notes={notes}
+      setNotes={setNotes}
+      amount={amount}
+      setAmount={setAmount}
+      months={months}
+      setMonths={setMonths}
+      onDepositPrompt={() => setDepositPromptOpen(true)}
+      onChat={(recipientUserId, label) =>
+        chatMutation.mutate({ recipientUserId, label })
+      }
+      contacts={{
+        landlord: displayLandlord?.userId
+          ? { userId: displayLandlord.userId, name: displayLandlord.name }
+          : null,
+        agent: displayAgent?.userId
+          ? { userId: displayAgent.userId, name: displayAgent.name }
+          : null,
+      }}
+    />
+  );
+
+  const guestActions = (
+    <Card className="rounded-none">
+      <CardContent className="pt-6">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Sign in to buy or request financing for this listing.
+        </p>
+        <div className="flex flex-col gap-2">
+          <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
+            <Link href={buildLoginUrl(returnPath, "BUYER")}>Sign in</Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full rounded-none">
+            <Link href={buildRegisterUrl(returnPath)}>Create account</Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const mobileTakeAction =
+    isBuyer ? (
+      <Button asChild variant="outline" size="sm" className="rounded-none">
+        <a href="#property-actions">Take action</a>
+      </Button>
+    ) : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
@@ -184,7 +254,7 @@ export default function PropertyDetailPage() {
           <PropertyImageGallery images={images} title={property.name} />
           <div className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="text-3xl font-bold">{property.name}</h1>
                   {property.isPremium ? <Badge className="bg-amber-500">Premium</Badge> : null}
@@ -201,7 +271,34 @@ export default function PropertyDetailPage() {
                   </span>
                 </div>
               </div>
-              {!isSale ? <PropertyLocationTrigger onClick={() => setLocationOpen(true)} /> : null}
+              <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+                {!isSale ? (
+                  <PropertyLocationTrigger onClick={() => setLocationOpen(true)} />
+                ) : null}
+                <div className="lg:hidden">
+                  {isMarketer ? (
+                    <PropertyPromoteButton
+                      propertyId={id}
+                      promotionStatus={promotionStatus}
+                      compact
+                    />
+                  ) : isBuyer ? (
+                    <PropertySaveButton
+                      propertyId={id}
+                      variant="button"
+                      className="rounded-none"
+                    />
+                  ) : !session ? (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
+                    >
+                      <Link href={buildLoginUrl(returnPath, "BUYER")}>Sign in</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             {!isSale ? (
@@ -221,28 +318,38 @@ export default function PropertyDetailPage() {
             ) : null}
 
             {isSale ? (
-              <div className="space-y-1">
-                {discountedPrice ? (
-                  <>
-                    <p className="text-lg text-muted-foreground line-through">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="space-y-1">
+                  {discountedPrice ? (
+                    <>
+                      <p className="text-lg text-muted-foreground line-through">
+                        GHS {listPrice.toLocaleString()}
+                      </p>
+                      <p className="text-3xl font-bold text-emerald-600">
+                        GHS {discountedPrice.toLocaleString()}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-3xl font-bold text-emerald-600">
                       GHS {listPrice.toLocaleString()}
                     </p>
-                    <p className="text-3xl font-bold text-emerald-600">
-                      GHS {discountedPrice.toLocaleString()}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-3xl font-bold text-emerald-600">
-                    GHS {listPrice.toLocaleString()}
-                  </p>
-                )}
+                  )}
+                </div>
+                <div className="lg:hidden">{mobileTakeAction}</div>
               </div>
             ) : (
-              <p className="text-3xl font-bold text-emerald-600">
-                GHS {listPrice.toLocaleString()}
-                <span className="text-base font-normal text-muted-foreground">/month</span>
-              </p>
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <p className="text-3xl font-bold text-emerald-600">
+                  GHS {listPrice.toLocaleString()}
+                  <span className="text-base font-normal text-muted-foreground">/month</span>
+                </p>
+                <div className="lg:hidden">{mobileTakeAction}</div>
+              </div>
             )}
+          </div>
+
+          <div id="property-actions" className="space-y-4 lg:hidden">
+            {isBuyer ? buyerActionPanel : !session ? guestActions : null}
           </div>
 
           <PropertySpecsGrid specs={specs} />
@@ -330,60 +437,17 @@ export default function PropertyDetailPage() {
           <SimilarPropertiesSection items={property.similar ?? []} />
         </div>
 
-        <div className="space-y-4">
-          <PropertySaveButton propertyId={id} variant="button" />
-          {session ? (
-            session.user.role === "BUYER" ? (
-              <PropertyActionPanel
-                propertyId={id}
-                propertyName={property.name}
-                isSale={isSale}
-                purchasePrice={purchasePrice}
-                walletBalance={walletBalance}
-                monthlyRent={listPrice}
-                propertyStatus={property.status}
-                kycVerified={financingReady}
-                financingDocsApproved={Boolean(financingDocs?.allApproved)}
-                approvedApplication={approvedApplication}
-                moveInDate={moveInDate}
-                setMoveInDate={setMoveInDate}
-                notes={notes}
-                setNotes={setNotes}
-                amount={amount}
-                setAmount={setAmount}
-                months={months}
-                setMonths={setMonths}
-                onDepositPrompt={() => setDepositPromptOpen(true)}
-                onChat={(recipientUserId, label) =>
-                  chatMutation.mutate({ recipientUserId, label })
-                }
-                contacts={{
-                  landlord: displayLandlord?.userId
-                    ? { userId: displayLandlord.userId, name: displayLandlord.name }
-                    : null,
-                  agent: displayAgent?.userId
-                    ? { userId: displayAgent.userId, name: displayAgent.name }
-                    : null,
-                }}
-              />
-            ) : null
-          ) : (
-            <Card className="rounded-none">
-              <CardContent className="pt-6">
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Sign in to buy or request financing for this listing.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <Button asChild className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700">
-                    <Link href={buildLoginUrl(returnPath, "BUYER")}>Sign in</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="w-full rounded-none">
-                    <Link href={buildRegisterUrl(returnPath)}>Create account</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <div className="hidden space-y-4 lg:block">
+          {isMarketer ? (
+            <PropertyPromoteButton propertyId={id} promotionStatus={promotionStatus} />
+          ) : null}
+          {isBuyer ? (
+            <>
+              <PropertySaveButton propertyId={id} variant="button" className="rounded-none" />
+              {buyerActionPanel}
+            </>
+          ) : null}
+          {!session ? guestActions : null}
         </div>
       </div>
 

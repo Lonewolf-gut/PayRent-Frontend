@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, Menu, Sparkles } from "lucide-react";
 import { RentVestLogo } from "./logo";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ProfileImage } from "@/components/shared/profile-image";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +31,6 @@ import { NavQuickActions } from "@/components/dashboard/nav-quick-actions";
 import { useSubscriptionUpgrade } from "@/components/subscription/subscription-upgrade-provider";
 import { isPaidPlan, normalizeSubscriptionPlan } from "@/lib/subscription/plans";
 import { roleRequiresSubscription } from "@/lib/subscription/roles";
-import { showMerchantAgentPricing } from "@/lib/subscription/pricing-visibility";
 import { cn } from "@/lib/utils";
 import { useSettingsProfile } from "@/hooks/use-settings-profile";
 import type { UserRole } from "@prisma/client";
@@ -42,6 +41,18 @@ const MARKETING_LINKS = [
   { href: "/pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ] as const;
+
+function getInitials(name?: string | null, email?: string | null) {
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
+  if (!email) return "U";
+  return email.slice(0, 2).toUpperCase();
+}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -83,15 +94,13 @@ export function Navbar() {
   });
 
   const currentPlan = normalizeSubscriptionPlan(
-    subscriptionData?.subscription?.plan ?? subscriptionData?.access?.plan ?? "FREE"
+    subscriptionData?.subscription?.plan ?? "FREE"
   );
   const showUpgradeInMenu =
     !!role && roleRequiresSubscription(role) && !isPaidPlan(currentPlan);
-  const marketingLinks = MARKETING_LINKS.filter((link) => {
-    if (link.href === "/pricing" && pathname === "/pricing") return false;
-    if (link.href === "/pricing" && !showMerchantAgentPricing(role)) return false;
-    return true;
-  });
+  const marketingLinks = MARKETING_LINKS.filter(
+    (link) => !(link.href === "/pricing" && pathname === "/pricing")
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">
@@ -150,6 +159,19 @@ export function Navbar() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {session?.user ? (
             <>
+              {role === "BUYER" ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-emerald-200 px-2 text-emerald-800 hover:bg-emerald-50 sm:px-3"
+                >
+                  <Link href="/dashboard/buyer/applications">
+                    <span className="sm:hidden">Status</span>
+                    <span className="hidden sm:inline">Request status</span>
+                  </Link>
+                </Button>
+              ) : null}
               <NavQuickActions />
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
               <DropdownMenuTrigger
@@ -158,13 +180,18 @@ export function Navbar() {
                 onMouseEnter={openMenu}
                 onMouseLeave={scheduleCloseMenu}
               >
-                <ProfileImage
-                  image={avatarImage}
-                  name={fullName}
-                  email={email}
-                  size="md"
-                  className="cursor-pointer"
-                />
+                <Avatar size="default" className="relative size-10 cursor-pointer">
+                  {avatarImage ? (
+                    <AvatarImage
+                      key={avatarImage}
+                      src={avatarImage}
+                      alt="Profile photo"
+                    />
+                  ) : null}
+                  <AvatarFallback className="bg-emerald-100 text-emerald-800">
+                    {getInitials(fullName, email)}
+                  </AvatarFallback>
+                </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"

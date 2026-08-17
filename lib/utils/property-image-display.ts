@@ -73,6 +73,18 @@ export function isDirectlyLoadableImageUrl(url: string): boolean {
   return false;
 }
 
+/** Public CDN URLs (e.g. Unsplash) can load directly in the browser without the API proxy. */
+export function isPublicCdnImageUrl(url: string): boolean {
+  if (!/^https?:\/\//i.test(url)) return false;
+
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "images.unsplash.com" || host.endsWith(".unsplash.com");
+  } catch {
+    return false;
+  }
+}
+
 export function propertyImageApiPath(imageId: string) {
   return `/api/files/property-image/${imageId}`;
 }
@@ -89,6 +101,10 @@ export function resolvePropertyImageDisplayUrl(image: PropertyImageRecord): stri
 
   if (/^data:/i.test(raw)) {
     return raw;
+  }
+
+  if (/^https?:\/\//i.test(raw) && isPublicCdnImageUrl(raw)) {
+    return normalizeSupabasePublicUrl(raw);
   }
 
   if (image.id) {

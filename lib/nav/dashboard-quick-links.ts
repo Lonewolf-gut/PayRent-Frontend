@@ -18,6 +18,10 @@ export const SAVED_ROUTES: Partial<Record<UserRole, string>> = {
   BUYER: "/dashboard/buyer/properties",
 };
 
+export const REQUEST_STATUS_ROUTES: Partial<Record<UserRole, string>> = {
+  BUYER: "/dashboard/buyer/applications",
+};
+
 export function getMessagesPath(role?: UserRole | string | null) {
   if (!role) return "/login";
   return MESSAGES_ROUTES[role as UserRole] ?? "/dashboard";
@@ -31,4 +35,9 @@ export function getWalletPath(role?: UserRole | string | null) {
 export function getSavedPath(role?: UserRole | string | null) {
   if (!role) return "/login";
   return SAVED_ROUTES[role as UserRole] ?? null;
+}
+
+export function getRequestStatusPath(role?: UserRole | string | null) {
+  if (!role) return null;
+  return REQUEST_STATUS_ROUTES[role as UserRole] ?? null;
 }

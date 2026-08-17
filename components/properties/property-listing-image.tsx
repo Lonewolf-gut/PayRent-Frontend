@@ -6,6 +6,7 @@ import {
   propertyImageApiPath,
   resolvePropertyImageDisplayUrl,
   type PropertyImageRecord,
+  isPublicCdnImageUrl,
 } from "@/lib/utils/property-image-display";
 
 export type ListingImageRecord = PropertyImageRecord & {
@@ -17,8 +18,8 @@ export type ListingImageRecord = PropertyImageRecord & {
 function resolveListingImageSrc(image: ListingImageRecord): string {
   const raw = normalizeDbImageUrl(image.url);
 
-  // Inline data URLs load directly; everything else with an id goes through the backend API.
-  if (image.id && raw && !/^data:/i.test(raw)) {
+  // Public CDN URLs load directly; storage-backed images use the backend API.
+  if (image.id && raw && !/^data:/i.test(raw) && !isPublicCdnImageUrl(raw)) {
     return propertyImageApiPath(image.id);
   }
 
@@ -39,16 +40,24 @@ type PropertyListingImageProps = {
 /** Cover/thumbnail image for property cards — uses backend API with onError fallback. */
 export function PropertyListingImage({ image, alt, className }: PropertyListingImageProps) {
   const primary = useMemo(() => resolveListingImageSrc(image), [image]);
+  const directUrl = useMemo(() => {
+    const raw = normalizeDbImageUrl(image.url);
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return image.displayUrl ?? image.src ?? null;
+  }, [image]);
   const [useFallback, setUseFallback] = useState(false);
 
   const src = useMemo(() => {
     if (!primary) return null;
+    if (useFallback && directUrl && directUrl !== primary) {
+      return directUrl;
+    }
     if (useFallback && image.id) {
       const apiPath = propertyImageApiPath(image.id);
-      return primary === apiPath ? primary : apiPath;
+      return primary === apiPath ? directUrl ?? primary : apiPath;
     }
     return primary;
-  }, [image.id, primary, useFallback]);
+  }, [directUrl, image.id, primary, useFallback]);
 
   if (!src) return null;
 
@@ -60,7 +69,7 @@ export function PropertyListingImage({ image, alt, className }: PropertyListingI
       className={className}
       loading="lazy"
       onError={() => {
-        if (image.id && !useFallback) {
+        if (!useFallback) {
           setUseFallback(true);
         }
       }}

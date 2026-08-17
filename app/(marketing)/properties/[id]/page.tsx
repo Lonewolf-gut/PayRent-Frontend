@@ -26,6 +26,7 @@ import { PropertyLocationSheet, PropertyLocationTrigger } from "@/components/pro
 import { PropertySpecsGrid } from "@/components/properties/property-specs-grid";
 import { SimilarPropertiesSection } from "@/components/properties/similar-properties";
 import { PropertyActionPanel } from "@/components/properties/property-action-panel";
+import { FinancingRequestDialog } from "@/components/applications/financing-request-dialog";
 import { useAuthReturnPath } from "@/hooks/use-auth-return-path";
 import { buildLoginUrl, buildRegisterUrl } from "@/lib/utils/auth-callback-url";
 import { buildPropertySpecs } from "@/lib/utils/property-specs";
@@ -45,6 +46,7 @@ export default function PropertyDetailPage() {
   const { data: session } = useSession();
   const [locationOpen, setLocationOpen] = useState(false);
   const [depositPromptOpen, setDepositPromptOpen] = useState(false);
+  const [financingOpen, setFinancingOpen] = useState(false);
 
   const { data: property, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -142,6 +144,7 @@ export default function PropertyDetailPage() {
       walletBalance={walletBalance}
       propertyStatus={property.status}
       onDepositPrompt={() => setDepositPromptOpen(true)}
+      onRequestFinancing={() => setFinancingOpen(true)}
       onChat={(recipientUserId, label) =>
         chatMutation.mutate({ recipientUserId, label })
       }
@@ -412,6 +415,14 @@ export default function PropertyDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isBuyer ? (
+        <FinancingRequestDialog
+          propertyId={id}
+          open={financingOpen}
+          onOpenChange={setFinancingOpen}
+        />
+      ) : null}
     </div>
   );
 }

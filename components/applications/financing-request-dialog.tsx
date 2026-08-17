@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import {
@@ -23,8 +24,21 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FINANCING_DOC_LABELS } from "@/lib/constants/financing-docs";
+import {
+  DEFAULT_REPAYMENT_MONTHS,
+  REPAYMENT_PERIOD_OPTIONS,
+} from "@/lib/constants/financing-repayment";
 import { isSaleListing } from "@/lib/subscription-limits";
 import type { PropertyType, TenantFinancingDocType } from "@prisma/client";
+
+type BankAccount = {
+  id: string;
+  bankName: string;
+  accountNumberMasked?: string | null;
+  accountName: string;
+  isVerified: boolean;
+  isDefault?: boolean;
+};
 
 type FinancingRequestDialogProps = {
   propertyId: string;
@@ -49,14 +63,11 @@ export function FinancingRequestDialog({
   const [moveInDate, setMoveInDate] = useState("");
   const [notes, setNotes] = useState("");
   const [amount, setAmount] = useState("");
-  const [months, setMonths] = useState("12");
+  const [months, setMonths] = useState(String(DEFAULT_REPAYMENT_MONTHS));
   const [monthlyIncome, setMonthlyIncome] = useState("");
-  const [financingConsent, setFinancingConsent] = useState(false);
-  const [preferredChannel, setPreferredChannel] = useState<
-    "BANK_MANDATE" | "WALLET" | "MOBILE_MONEY"
-  >("BANK_MANDATE");
-  const [preferredPaymentDay, setPreferredPaymentDay] = useState("1");
-  const [contactPhone, setContactPhone] = useState("");
+  const [dataConsent, setDataConsent] = useState(false);
+  const [mandateConsent, setMandateConsent] = useState(false);
+  const [bankAccountId, setBankAccountId] = useState("");
   const [docFiles, setDocFiles] = useState<Partial<Record<TenantFinancingDocType, File>>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submittedPropertyName, setSubmittedPropertyName] = useState("");
@@ -71,6 +82,18 @@ export function FinancingRequestDialog({
     enabled: open && Boolean(propertyId),
   });
 
+  const { data: bankData } = useQuery({
+    queryKey: ["settings-bank-accounts"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings");
+      const json = await res.json();
+      return json.data as { bankAccounts?: BankAccount[] };
+    },
+    enabled: open,
+  });
+
+  const verifiedAccounts = (bankData?.bankAccounts ?? []).filter((a) => a.isVerified);
+
   const { data: financingDocs } = useQuery({
     queryKey: ["tenant-financing-docs"],
     queryFn: async () => {
@@ -79,7 +102,7 @@ export function FinancingRequestDialog({
       return json.data as {
         allApproved: boolean;
         requiredTypes: TenantFinancingDocType[];
-        documents: Array<{ documentType: TenantFinancingDocType; status: string }>;
+        documents: Array<{ documentType: TenantFinancingDocType; status: string; fileName?: string }>;
       };
     },
     enabled: open,
@@ -122,10 +145,17 @@ export function FinancingRequestDialog({
   }, [defaultAmount, amount]);
 
   useEffect(() => {
-    if (!open) {
-      setConfirmOpen(false);
-    }
+    if (!open) setConfirmOpen(false);
   }, [open]);
+
+  useEffect(() => {
+    if (!verifiedAccounts.length) return;
+    const defaultAccount =
+      verifiedAccounts.find((a) => a.isDefault) ?? verifiedAccounts[0];
+    if (defaultAccount && !bankAccountId) {
+      setBankAccountId(defaultAccount.id);
+    }
+  }, [verifiedAccounts, bankAccountId]);
 
   const requiredDocTypes = financingDocs?.requiredTypes ?? ["PAYSLIP", "BANK_STATEMENT"];
   const docsByType = new Map(
@@ -134,8 +164,19 @@ export function FinancingRequestDialog({
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      if (!financingConsent) {
-        throw new Error("You must consent to data collection and processing for financing.");
+      if (!dataConsent) {
+        throw new Error("You must consent to data processing for this financing request.");
+      }
+      if (!mandateConsent) {
+        throw new Error(
+          "You must consent to scheduled repayments being debited from your bank account."
+        );
+      }
+      if (!verifiedAccounts.length) {
+        throw new Error("Add and verify a bank account in Settings before submitting.");
+      }
+      if (!bankAccountId) {
+        throw new Error("Select the bank account that will be debited for repayments.");
       }
       if (existingFinancing) {
         throw new Error("You already have a Pay-for-Me request for this listing.");
@@ -162,8 +203,9 @@ export function FinancingRequestDialog({
 
       const missingUploads = requiredDocTypes.filter((type) => {
         const existing = docsByType.get(type);
-        const hasApproved = existing?.status === "APPROVED";
-        return !hasApproved && !docFiles[type];
+        const hasPendingOrApproved =
+          existing?.status === "APPROVED" || existing?.status === "PENDING";
+        return !hasPendingOrApproved && !docFiles[type];
       });
 
       if (missingUploads.length > 0) {
@@ -174,7 +216,7 @@ export function FinancingRequestDialog({
 
       for (const type of requiredDocTypes) {
         const existing = docsByType.get(type);
-        if (existing?.status === "APPROVED") continue;
+        if (existing?.status === "APPROVED" || existing?.status === "PENDING") continue;
         const file = docFiles[type];
         if (!file) continue;
 
@@ -201,9 +243,10 @@ export function FinancingRequestDialog({
           durationMonths: parseInt(months, 10),
           monthlyIncome: monthlyIncome ? parseFloat(monthlyIncome) : undefined,
           repaymentPreference: {
-            preferredChannel,
-            preferredPaymentDay: parseInt(preferredPaymentDay, 10),
-            contactPhone: contactPhone || undefined,
+            preferredChannel: "BANK_MANDATE",
+            preferredPaymentDay: 1,
+            bankAccountId,
+            mandateDebitConsent: true,
           },
           dataProcessingConsent: true,
         }),
@@ -235,8 +278,20 @@ export function FinancingRequestDialog({
   const handleConfirmClose = () => {
     setConfirmOpen(false);
     setDocFiles({});
-    setFinancingConsent(false);
+    setDataConsent(false);
+    setMandateConsent(false);
   };
+
+  const selectedBank = verifiedAccounts.find((a) => a.id === bankAccountId);
+  const canSubmit =
+    Boolean(amount) &&
+    dataConsent &&
+    mandateConsent &&
+    verifiedAccounts.length > 0 &&
+    Boolean(bankAccountId) &&
+    !submitMutation.isPending &&
+    !propertyLoading &&
+    !existingFinancing;
 
   if (existingFinancing && open) {
     return (
@@ -245,13 +300,12 @@ export function FinancingRequestDialog({
           <DialogHeader>
             <DialogTitle>Pay-for-Me request already submitted</DialogTitle>
             <DialogDescription>
-              You already have a financing request for this listing. Track its status in your
-              applications list below.
+              Track this request on your Pay-for-Me dashboard.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button className="rounded-none" onClick={() => onOpenChange(false)}>
-              Close
+          <DialogFooter className="gap-2">
+            <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/dashboard/buyer/financing">View my requests</Link>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -266,11 +320,12 @@ export function FinancingRequestDialog({
           <DialogHeader>
             <DialogTitle>
               {propertyLoading
-                ? "Request Pay-for-Me financing"
-                : `Request Pay-for-Me financing${property?.name ? ` — ${property.name}` : ""}`}
+                ? "Submit financing request"
+                : `Submit financing request${property?.name ? ` — ${property.name.replace(/^\[Demo\]\s*/i, "")}` : ""}`}
             </DialogTitle>
             <DialogDescription>
-              Fill in your details and upload your payslip and bank statement.
+              Complete the form, upload your payslip and bank statements (6–12 months), and
+              confirm your repayment bank account.
             </DialogDescription>
           </DialogHeader>
 
@@ -295,7 +350,6 @@ export function FinancingRequestDialog({
                       className="rounded-none"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Tell the merchant about yourself"
                     />
                   </div>
                 </>
@@ -310,15 +364,23 @@ export function FinancingRequestDialog({
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </div>
+
               <div>
-                <Label>Repayment period (months)</Label>
-                <Input
-                  type="number"
-                  className="rounded-none"
-                  value={months}
-                  onChange={(e) => setMonths(e.target.value)}
-                />
+                <Label>Repayment period</Label>
+                <Select value={months} onValueChange={setMonths}>
+                  <SelectTrigger className="rounded-none">
+                    <SelectValue placeholder="Choose repayment period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REPAYMENT_PERIOD_OPTIONS.map((option) => (
+                      <SelectItem key={option.months} value={String(option.months)}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
               <div>
                 <Label>Monthly income (GHS)</Label>
                 <Input
@@ -328,35 +390,57 @@ export function FinancingRequestDialog({
                   onChange={(e) => setMonthlyIncome(e.target.value)}
                 />
               </div>
-              <div>
-                <Label>Preferred repayment channel</Label>
-                <Select
-                  value={preferredChannel}
-                  onValueChange={(v) => setPreferredChannel(v as typeof preferredChannel)}
-                >
-                  <SelectTrigger className="rounded-none">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="BANK_MANDATE">Bank mandate (auto-debit)</SelectItem>
-                    <SelectItem value="WALLET">Wallet balance</SelectItem>
-                    <SelectItem value="MOBILE_MONEY">Mobile money</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              <div className="space-y-2 border-t pt-4">
+                <Label>Repayment bank account</Label>
+                {!verifiedAccounts.length ? (
+                  <div className="rounded-none border border-amber-200 bg-amber-50/50 p-3 text-sm">
+                    <p className="text-amber-950">
+                      Add and verify a bank account before you can submit a financing request.
+                    </p>
+                    <Button asChild size="sm" className="mt-2 rounded-none" variant="outline">
+                      <Link href="/dashboard/buyer/settings">Add bank account</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Select value={bankAccountId} onValueChange={setBankAccountId}>
+                      <SelectTrigger className="rounded-none">
+                        <SelectValue placeholder="Select bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {verifiedAccounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.bankName} · {account.accountNumberMasked ?? "****"} ·{" "}
+                            {account.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedBank ? (
+                      <p className="text-xs text-muted-foreground">
+                        Scheduled repayments will be debited from this account for the duration
+                        you selected.
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </div>
 
               <div className="space-y-3 border-t pt-4">
-                <p className="text-sm font-medium">Financing documents</p>
+                <p className="text-sm font-medium">Supporting documents</p>
                 {requiredDocTypes.map((type) => {
                   const existing = docsByType.get(type);
-                  const approved = existing?.status === "APPROVED";
+                  const uploaded = existing?.status === "APPROVED" || existing?.status === "PENDING";
                   return (
                     <div key={type} className="space-y-2">
                       <Label htmlFor={`fin-doc-${type}`}>
-                        {FINANCING_DOC_LABELS[type]}
-                        {approved ? " (approved)" : ""}
+                        {type === "BANK_STATEMENT"
+                          ? "Bank statement (6–12 months)"
+                          : FINANCING_DOC_LABELS[type]}
+                        {uploaded ? ` — ${existing?.status?.toLowerCase()}` : ""}
                       </Label>
-                      {!approved ? (
+                      {!uploaded ? (
                         <Input
                           id={`fin-doc-${type}`}
                           type="file"
@@ -364,12 +448,12 @@ export function FinancingRequestDialog({
                           className="rounded-none"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                              setDocFiles((prev) => ({ ...prev, [type]: file }));
-                            }
+                            if (file) setDocFiles((prev) => ({ ...prev, [type]: file }));
                             e.target.value = "";
                           }}
                         />
+                      ) : existing?.fileName ? (
+                        <p className="text-xs text-muted-foreground">Uploaded: {existing.fileName}</p>
                       ) : null}
                       {docFiles[type] ? (
                         <p className="text-xs text-muted-foreground">
@@ -385,31 +469,34 @@ export function FinancingRequestDialog({
                 <input
                   type="checkbox"
                   className="mt-1"
-                  checked={financingConsent}
-                  onChange={(e) => setFinancingConsent(e.target.checked)}
+                  checked={dataConsent}
+                  onChange={(e) => setDataConsent(e.target.checked)}
                 />
                 <span>I consent to PayForMe processing my data for this financing request.</span>
+              </label>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={mandateConsent}
+                  onChange={(e) => setMandateConsent(e.target.checked)}
+                />
+                <span>
+                  I consent to scheduled repayments being automatically debited from my selected
+                  bank account for the full repayment period.
+                </span>
               </label>
             </div>
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              className="rounded-none"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant="outline" className="rounded-none" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button
               className="rounded-none bg-emerald-600 hover:bg-emerald-700"
-              disabled={
-                !amount ||
-                !financingConsent ||
-                submitMutation.isPending ||
-                propertyLoading ||
-                Boolean(existingFinancing)
-              }
+              disabled={!canSubmit}
               onClick={() => submitMutation.mutate()}
             >
               {submitMutation.isPending ? "Submitting…" : "Submit financing request"}
@@ -424,17 +511,15 @@ export function FinancingRequestDialog({
             <CheckCircle2 className="mb-2 size-12 text-emerald-600" />
             <DialogTitle>Financing request submitted</DialogTitle>
             <DialogDescription>
-              Your Pay-for-Me request for {submittedPropertyName} has been submitted. The merchant
-              and admin will review it in order — track progress in your applications list. The
-              process stops before your bank mandate is sent.
+              Your request for {submittedPropertyName.replace(/^\[Demo\]\s*/i, "")} was sent to
+              the merchant and admin for review. Track status on your Pay-for-Me dashboard.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center">
-            <Button
-              className="rounded-none bg-emerald-600 hover:bg-emerald-700"
-              onClick={handleConfirmClose}
-            >
-              Done
+            <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/dashboard/buyer/financing" onClick={handleConfirmClose}>
+                View my requests
+              </Link>
             </Button>
           </DialogFooter>
         </DialogContent>

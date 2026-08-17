@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CreditCard, ShoppingBag, Wallet, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ type PropertyActionPanelProps = {
   walletBalance: number;
   propertyStatus: string;
   onDepositPrompt: () => void;
+  onRequestFinancing: () => void;
   onChat: (recipientUserId: string, label: string) => void;
   contacts: {
     landlord?: { userId: string; name: string } | null;
@@ -28,11 +28,10 @@ export function PropertyActionPanel({
   walletBalance,
   propertyStatus,
   onDepositPrompt,
+  onRequestFinancing,
   onChat,
   contacts,
 }: PropertyActionPanelProps) {
-  const router = useRouter();
-
   const { data: paymentConfig } = useQuery({
     queryKey: ["payment-config"],
     queryFn: async () => {
@@ -43,7 +42,6 @@ export function PropertyActionPanel({
   });
 
   const usesCheckout = Boolean(paymentConfig?.usesCheckoutForListings);
-  const financingRequestUrl = `/dashboard/buyer/applications?propertyId=${encodeURIComponent(propertyId)}&intent=financing`;
 
   const checkoutMutation = useMutation({
     mutationFn: async () => {
@@ -55,7 +53,7 @@ export function PropertyActionPanel({
       return json.data.checkout as { checkoutUrl: string };
     },
     onSuccess: (checkout) => {
-      router.push(checkout.checkoutUrl);
+      window.location.href = checkout.checkoutUrl;
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -75,7 +73,6 @@ export function PropertyActionPanel({
     },
     onSuccess: () => {
       toast.success("Purchase completed successfully");
-      router.refresh();
     },
     onError: (e: Error) => {
       if (e.message !== "Insufficient wallet balance") toast.error(e.message);
@@ -132,10 +129,10 @@ export function PropertyActionPanel({
 
       <Button
         className="w-full rounded-none bg-emerald-600 hover:bg-emerald-700"
-        onClick={() => router.push(financingRequestUrl)}
+        onClick={onRequestFinancing}
       >
         <CreditCard className="mr-2 size-4" />
-        Request Pay-for-Me financing
+        Submit financing request
       </Button>
 
       {(contacts.landlord?.userId || contacts.agent?.userId) && (

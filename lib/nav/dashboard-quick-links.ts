@@ -19,7 +19,7 @@ export const SAVED_ROUTES: Partial<Record<UserRole, string>> = {
 };
 
 export const REQUEST_STATUS_ROUTES: Partial<Record<UserRole, string>> = {
-  BUYER: "/dashboard/buyer/applications",
+  BUYER: "/dashboard/buyer/financing",
 };
 
 export function getMessagesPath(role?: UserRole | string | null) {

@@ -11,7 +11,6 @@ export const PROFILE_MENU_ITEMS: Record<UserRole, ProfileMenuItem[]> = {
     { href: "/dashboard/buyer", label: "Overview" },
     { href: "/dashboard/buyer/wallet", label: "Wallet" },
     { href: "/dashboard/buyer/properties", label: "Saved" },
-    { href: "/dashboard/buyer/applications", label: "Applications" },
     { href: "/dashboard/buyer/financing", label: "Pay for Me" },
     { href: "/dashboard/buyer/settings", label: "Settings" },
     { href: "/dashboard/buyer/kyc", label: "Profile & KYC" },

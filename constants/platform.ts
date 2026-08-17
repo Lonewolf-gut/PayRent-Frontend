@@ -38,13 +38,13 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<string, string> = {
   BUYER:
-    "Browse products, request pay-for-me financing, and track repayments.",
+    "Create an account, browse products, raise pay-for-me requests, view repayment schedules, make repayments, and submit complaints.",
   MERCHANT:
-    "List products, manage orders, and view sales from your dashboard.",
+    "Create a business profile, upload products, manage inventory, confirm orders, update delivery status, and view sales reports.",
   MARKETER:
-    "Promote listings, track referrals, and earn commissions.",
+    "Promote products, track referred buyers, view commission reports, and support merchant sales campaigns.",
   LENDER:
-    "Review financing requests, fund deals, and monitor repayments.",
+    "View eligible pay-for-me requests, accept financing requests, view repayment status, and receive repayment notifications.",
   ADMIN:
     "Verify users, approve merchants and lenders, manage disputes, monitor transactions, configure fees, and generate reports.",
   COMPLIANCE_OFFICER:
@@ -89,18 +89,18 @@ export const APPLICATION_STATUS_LABELS: Record<string, string> = {
 };
 
 export const FINANCING_STATUS_LABELS: Record<string, string> = {
-  CREATED: "Submitted — waiting for merchant approval",
-  ELIGIBILITY_PENDING: "Waiting for admin approval",
-  MANDATE_PENDING: "PDF mandate sent to bank",
-  READY_FOR_LENDER_REVIEW: "Waiting for lender confirmation",
-  PENDING: "Submitted — waiting for merchant approval",
-  UNDER_REVIEW: "Waiting for admin approval",
-  APPROVED: "Waiting for lender confirmation",
+  CREATED: "Created",
+  ELIGIBILITY_PENDING: "Eligibility Pending",
+  MANDATE_PENDING: "Mandate Pending",
+  READY_FOR_LENDER_REVIEW: "Ready for Lender Review",
+  PENDING: "Pending",
+  UNDER_REVIEW: "Under Review",
+  APPROVED: "Approved",
   REJECTED: "Rejected",
   WITHDRAWN: "Withdrawn",
-  FUNDED: "Financing active — mandate in place",
-  DISBURSED: "Financing active — mandate in place",
-  REPAYMENT_ACTIVE: "Financing active — mandate in place",
+  FUNDED: "Funded",
+  DISBURSED: "Disbursed",
+  REPAYMENT_ACTIVE: "Repayment Active",
   COMPLETED: "Completed",
   CLOSED: "Closed",
   DEFAULTED: "Defaulted",

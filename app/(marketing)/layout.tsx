@@ -8,6 +8,7 @@ import { MarketingSignedInExtras } from "@/components/marketing/marketing-signed
 import { MarketingSubscriptionShell } from "@/components/marketing/marketing-subscription-shell";
 import { MarketingThemeGuard } from "@/components/marketing/marketing-theme-guard";
 import { AgentReferralTracker } from "@/components/properties/agent-referral-tracker";
+import { FooterSocialLinks } from "@/components/marketing/footer-social-links";
 
 export default async function MarketingLayout({
   children,
@@ -33,6 +34,7 @@ export default async function MarketingLayout({
               merchants, Affiliates, and lenders. Merchants and Affiliates subscribe to list;
               Customers and lenders join free.
             </p>
+            <FooterSocialLinks />
           </div>
           <div>
             <p className="text-base font-semibold text-emerald-950">Quick links</p>

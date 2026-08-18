@@ -21,6 +21,38 @@ If the build compiles but fails at **Collecting build traces** with an `ENOENT` 
 
 Standalone output is still enabled on Linux/macOS CI for deployment. Force it on Windows with `NEXT_OUTPUT_STANDALONE=1` only if you deploy from Windows.
 
+## Fix: `Cannot find module backend-api-url` on Frontend build
+
+`next.config.ts` imports `lib/utils/backend-api-url.ts`. In a split Frontend repo, pull it from PayRent:
+
+```powershell
+git fetch payrent
+git checkout payrent/cursor/demo-payments-financing-5e51 -- `
+  lib/utils/backend-api-url.ts `
+  lib/utils/internal-api-proxy.ts `
+  proxy.ts `
+  next.config.ts
+```
+
+## Fix: `@next/swc-win32-x64-msvc` is not a valid Win32 application
+
+Corrupted or mismatched Next/SWC binaries. In **PayRent-Frontend**:
+
+```powershell
+npm run dev:fix
+npm install
+npm run build
+```
+
+Or reinstall matching versions (use the same major.minor as your `next` package):
+
+```powershell
+Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+npm install
+npm install next@16.2.6 @next/swc-win32-x64-msvc@16.2.6 --save-exact
+npm run build
+```
+
 ## Fix: `Module not found` on Frontend build
 
 If `npm run build` in **PayRent-Frontend** fails with missing modules such as:
@@ -48,6 +80,10 @@ Then pull **frontend-safe** paths only (pages, components, constants, auth permi
 - `app/dashboard/**` (pages)
 - `components/**`
 - `lib/auth/permissions.ts`
+- `lib/utils/backend-api-url.ts`
+- `lib/utils/internal-api-proxy.ts`
+- `proxy.ts`
+- `next.config.ts`
 - `constants/**`
 
 **Backend-only**

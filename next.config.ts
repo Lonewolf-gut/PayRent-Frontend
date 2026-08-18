@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
-import { getBackendApiBaseUrl } from "./lib/utils/backend-api-url";
+
+/** Inlined so next.config loads in split Frontend repos without an extra checkout. */
+function getBackendApiBaseUrl() {
+  const url =
+    process.env.INTERNAL_API_URL ??
+    process.env.API_URL ??
+    process.env.NEXT_PUBLIC_API_URL;
+
+  return url?.replace(/\/$/, "") ?? "";
+}
 
 const lifecycle = process.env.npm_lifecycle_event ?? "";
 const isDevLifecycle =

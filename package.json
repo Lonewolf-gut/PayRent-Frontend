@@ -14,7 +14,7 @@
     "dev:fix": "npm run dev:reset",
     "fix:swc": "node scripts/fix-swc-win.js",
     "ensure:split-repo": "node scripts/ensure-split-repo-files.js",
-    "prebuild": "node scripts/ensure-split-repo-files.js && node scripts/fix-swc-win.js",
+    "prebuild": "node scripts/ensure-split-repo-files.js",
     "predev": "node scripts/ensure-split-repo-files.js",
     "build": "npm run db:generate && npm run copy-prisma-client && next build --webpack",
     "build:win": "node scripts/build-win.js",
@@ -93,7 +93,8 @@
     "zustand": "^5.0.14"
   },
   "optionalDependencies": {
-    "@next/swc-win32-x64-msvc": "16.3.1"
+    "@next/swc-win32-x64-msvc": "16.2.6",
+    "@next/swc-wasm-nodejs": "16.2.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

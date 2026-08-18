@@ -91,7 +91,7 @@ export function buildRequestPipeline(input: {
       approver: "Lender",
       status: getFinancingStepStatus(
         finStatus,
-        ["READY_FOR_LENDER_REVIEW", "PENDING", "UNDER_REVIEW", "APPROVED"],
+        ["READY_FOR_LENDER_REVIEW", "PENDING", "UNDER_REVIEW"],
         appApproved
       ),
       description: "A lender reviews listings and chooses requests to finance.",

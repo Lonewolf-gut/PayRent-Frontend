@@ -482,8 +482,8 @@ export function FinancingRequestDialog({
             <CheckCircle2 className="mb-2 size-12 text-emerald-600" />
             <DialogTitle>Financing request submitted</DialogTitle>
             <DialogDescription>
-              Your request for {submittedPropertyName.replace(/^\[Demo\]\s*/i, "")} was sent to
-              the merchant and admin for review. Track status on your Pay-for-Me dashboard.
+              Your request for {submittedPropertyName.replace(/^\[Demo\]\s*/i, "")} was sent for
+              review. Track status on your financing applications dashboard.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center">

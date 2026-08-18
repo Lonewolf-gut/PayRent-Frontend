@@ -87,14 +87,14 @@ export function buildRequestPipeline(input: {
     },
     {
       id: "lender",
-      label: "Lender offer",
+      label: "Lender financing",
       approver: "Lender",
       status: getFinancingStepStatus(
         finStatus,
         ["READY_FOR_LENDER_REVIEW", "PENDING", "UNDER_REVIEW", "APPROVED"],
         appApproved
       ),
-      description: "Lender sends financing terms for you to accept.",
+      description: "A lender reviews listings and chooses requests to finance.",
     },
     {
       id: "disbursement",
@@ -157,6 +157,9 @@ export function getCurrentApproverLabel(steps: RequestPipelineStep[]) {
     const allComplete = steps.every((s) => s.status === "complete");
     if (allComplete) return "Complete — repayment schedule active";
     return "Waiting for next step";
+  }
+  if (current.id === "lender") {
+    return "Waiting for lender to finance";
   }
   return `Waiting on: ${current.approver} — ${current.label}`;
 }

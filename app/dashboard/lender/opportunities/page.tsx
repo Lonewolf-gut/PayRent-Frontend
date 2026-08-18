@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +30,9 @@ export default function LenderOpportunitiesPage() {
       const json = await res.json();
       return json.data as {
         financedCount: number;
-        limit: number;
-        remaining: number;
-        atLimit: boolean;
+        limit: number | null;
+        remaining: number | null;
+        isPaid: boolean;
       };
     },
   });
@@ -87,17 +88,27 @@ export default function LenderOpportunitiesPage() {
 
   return (
     <div className="space-y-6">
-      {financingAccess ? (
-        <div className="rounded-none border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
-          {financingAccess.financedCount} of {financingAccess.limit} properties financed.
-          {financingAccess.atLimit ? (
-            <> You&apos;ve reached your financing limit.</>
+      {financingAccess && !financingAccess.isPaid ? (
+        <div className="rounded-none border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Free plan: {financingAccess.financedCount} of {financingAccess.limit ?? 100} properties financed.
+          {financingAccess.remaining === 0 ? (
+            <>
+              {" "}
+              Subscribe for unlimited financing access.{" "}
+              <Link href="/dashboard/lender/subscription" className="font-medium underline">
+                View plans
+              </Link>
+            </>
           ) : (
             <> {financingAccess.remaining} financing slots remaining.</>
           )}
         </div>
       ) : null}
-      <h1 className="text-2xl font-bold">Funding Requests</h1>
+      <h1 className="text-2xl font-bold">Listings awaiting financing</h1>
+      <p className="text-muted-foreground">
+        Choose a listing to review and send a financing offer. Requests appear here after admin
+        approval and mandate setup.
+      </p>
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : !requests?.length ? (

@@ -69,22 +69,19 @@ export function canEditFinancingRequest(
   applicationStatus: string,
   financingStatus?: string | null
 ) {
-  if (applicationStatus === "REJECTED" || financingStatus === "REJECTED") return false;
+  if (applicationStatus !== "SUBMITTED") return false;
+  if (financingStatus === "REJECTED") return false;
   if (financingStatus && financingStatus !== "CREATED") return false;
-  return (
-    ["SUBMITTED", "UNDER_REVIEW", "CLARIFICATION_REQUIRED", "APPROVED"].includes(
-      applicationStatus
-    ) && (!financingStatus || financingStatus === "CREATED")
-  );
+  return true;
 }
 
 export function canReplaceFinancingDocuments(
   applicationStatus: string,
   financingDocs?: RequestDocumentBundle | null
 ) {
-  if (applicationStatus === "REJECTED") return false;
+  if (applicationStatus !== "SUBMITTED") return false;
   if (financingDocs?.canReplace === false) return false;
-  return applicationStatus !== "APPROVED";
+  return true;
 }
 
 export function FinancingRequestAccordionCard({
@@ -329,7 +326,7 @@ export function FinancingRequestAccordionCard({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Editing is locked once the merchant approves your application.
+                  Editing is locked once the merchant responds to your application.
                 </p>
               )}
 

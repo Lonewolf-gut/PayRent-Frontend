@@ -92,7 +92,7 @@ export const FINANCING_STATUS_LABELS: Record<string, string> = {
   CREATED: "Queued for review",
   ELIGIBILITY_PENDING: "Eligibility Pending",
   MANDATE_PENDING: "Mandate Pending",
-  READY_FOR_LENDER_REVIEW: "Ready for Lender Review",
+  READY_FOR_LENDER_REVIEW: "Waiting for lender to finance",
   PENDING: "Pending",
   UNDER_REVIEW: "Under Review",
   APPROVED: "Approved",

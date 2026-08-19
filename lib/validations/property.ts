@@ -97,7 +97,7 @@ export const propertySchema = z
       ctx.addIssue({
         code: "custom",
         message:
-          "Add structured location details (region, city, and area) or a location summary of at least 5 characters",
+          "Add at least one location detail (region, city, area, street, landmark, or similar)",
         path: ["location"],
       });
     }

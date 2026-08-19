@@ -79,12 +79,12 @@ export function AgentSearchField({ value, onChange, className }: AgentSearchFiel
       </p>
       {loading ? <p className="text-xs text-muted-foreground">Searching...</p> : null}
       {results.length > 0 ? (
-        <ul className="max-h-48 overflow-y-auto rounded-md border bg-white shadow-sm">
+        <ul className="max-h-48 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-sm">
           {results.map((agent) => (
             <li key={agent.id}>
               <button
                 type="button"
-                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-emerald-50"
+                className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted"
                 onClick={() => pickAgent(agent)}
               >
                 {agent.image ? (
@@ -96,13 +96,15 @@ export function AgentSearchField({ value, onChange, className }: AgentSearchFiel
                     className="size-8 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="flex size-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-medium text-emerald-800">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-emerald-600/15 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                     {agent.fullName.slice(0, 2).toUpperCase()}
                   </span>
                 )}
-                <span>
-                  <span className="block text-sm font-medium">{agent.fullName}</span>
-                  <span className="block text-xs text-muted-foreground">{agent.email}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {agent.fullName}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">{agent.email}</span>
                 </span>
               </button>
             </li>
@@ -112,7 +114,7 @@ export function AgentSearchField({ value, onChange, className }: AgentSearchFiel
       {(value || selected) && (
         <button
           type="button"
-          className="text-xs text-emerald-700 hover:underline"
+          className="text-xs text-emerald-600 hover:underline dark:text-emerald-400"
           onClick={clearAgent}
         >
           Clear Affiliate selection

@@ -31,6 +31,7 @@ import {
   emptyPropertyLocation,
   type PropertyLocationForm,
 } from "@/components/properties/property-location-fields";
+import { buildLocationString } from "@/lib/utils/property-location";
 import {
   emptyAttributesForType,
   getAmenitiesForType,
@@ -226,22 +227,40 @@ export default function LandlordPropertiesPage() {
   }, [addPropertyType]);
 
   useEffect(() => {
+    setAddValue("region", addLocation.region || undefined);
+    setAddValue("city", addLocation.city || undefined);
+    setAddValue("area", addLocation.area || undefined);
+    setAddValue("street", addLocation.street || undefined);
+    setAddValue("houseNumber", addLocation.houseNumber || undefined);
+    setAddValue("digitalAddress", addLocation.digitalAddress || undefined);
+    setAddValue("landmark", addLocation.landmark || undefined);
+    const locationSummary = buildLocationString(addLocation);
+    setAddValue("location", locationSummary || undefined);
     if (addLocation.latitude) {
       setAddValue("latitude", Number(addLocation.latitude));
     }
     if (addLocation.longitude) {
       setAddValue("longitude", Number(addLocation.longitude));
     }
-  }, [addLocation.latitude, addLocation.longitude, setAddValue]);
+  }, [addLocation, setAddValue]);
 
   useEffect(() => {
+    setEditValue("region", editLocation.region || undefined);
+    setEditValue("city", editLocation.city || undefined);
+    setEditValue("area", editLocation.area || undefined);
+    setEditValue("street", editLocation.street || undefined);
+    setEditValue("houseNumber", editLocation.houseNumber || undefined);
+    setEditValue("digitalAddress", editLocation.digitalAddress || undefined);
+    setEditValue("landmark", editLocation.landmark || undefined);
+    const locationSummary = buildLocationString(editLocation);
+    setEditValue("location", locationSummary || undefined);
     if (editLocation.latitude) {
       setEditValue("latitude", Number(editLocation.latitude));
     }
     if (editLocation.longitude) {
       setEditValue("longitude", Number(editLocation.longitude));
     }
-  }, [editLocation.latitude, editLocation.longitude, setEditValue]);
+  }, [editLocation, setEditValue]);
 
   useEffect(() => {
     if (!mapUrl) {

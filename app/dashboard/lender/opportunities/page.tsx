@@ -35,6 +35,17 @@ export default function LenderOpportunitiesPage() {
   const [interestRate, setInterestRate] = useState("8");
   const [planType, setPlanType] = useState<"MONTHLY" | "DEFERRED" | "CUSTOM">("MONTHLY");
 
+  const { data: financingRules } = useQuery({
+    queryKey: ["financing-rules"],
+    queryFn: async () => {
+      const res = await fetch("/api/financing/rules");
+      const json = await res.json();
+      return json.data as { maxInterestRatePercent: number };
+    },
+  });
+
+  const maxInterestRate = financingRules?.maxInterestRatePercent ?? 30;
+
   const { data: requests, isLoading } = useQuery({
     queryKey: ["financing-pending"],
     queryFn: async () => {
@@ -46,6 +57,12 @@ export default function LenderOpportunitiesPage() {
 
   const approveMutation = useMutation({
     mutationFn: async (financingRequestId: string) => {
+      const rate = parseFloat(interestRate);
+      if (rate > maxInterestRate) {
+        throw new Error(
+          `Interest rate cannot exceed the platform maximum of ${maxInterestRate}%. Contact admin if you need a higher cap.`
+        );
+      }
       const req = requests.find((r: { id: string }) => r.id === financingRequestId);
       const res = await fetch("/api/financing/approve", {
         method: "POST",
@@ -140,7 +157,7 @@ export default function LenderOpportunitiesPage() {
                         className="w-24"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
-                        The buyer sees this rate before accepting.
+                        Platform maximum: {maxInterestRate}%. The buyer sees this rate before accepting.
                       </p>
                     </div>
                     <div>

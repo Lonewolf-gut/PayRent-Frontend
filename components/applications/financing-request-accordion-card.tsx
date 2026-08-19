@@ -158,6 +158,27 @@ export function FinancingRequestAccordionCard({
       toast.success("Offer accepted — repayment mandate sent to bank");
       queryClient.invalidateQueries({ queryKey: ["applications"] });
       queryClient.invalidateQueries({ queryKey: ["financing"] });
+      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const declineOfferMutation = useMutation({
+    mutationFn: async () => {
+      if (!financingRequestId) throw new Error("Financing request not found.");
+      const res = await fetch("/api/financing/decline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? json.error?.message ?? "Could not decline offer");
+    },
+    onSuccess: () => {
+      toast.success("Offer declined — mandate cancelled");
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+      queryClient.invalidateQueries({ queryKey: ["financing"] });
+      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -387,41 +408,55 @@ export function FinancingRequestAccordionCard({
               )}
 
               {canAcceptOffer ? (
-                <div className="space-y-3 rounded-none border border-emerald-200 bg-emerald-50/50 p-4">
-                  <p className="text-sm font-medium text-foreground">Lender financing offer</p>
-                  <div className="grid gap-2 text-sm sm:grid-cols-2">
-                    <p>
-                      Amount: <span className="font-medium">GHS {offerAmount.toLocaleString()}</span>
-                    </p>
-                    <p>
-                      Interest rate:{" "}
-                      <span className="font-medium text-emerald-800">{offerRate}%</span>
-                    </p>
-                    <p>Duration: {financing?.durationMonths} months</p>
-                    {monthlyPayment > 0 ? (
-                      <p>
-                        Est. monthly payment:{" "}
-                        <span className="font-medium">GHS {monthlyPayment.toLocaleString()}</span>
+                <div className="space-y-3 rounded-none border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
+                  <p className="text-sm font-medium text-foreground">Lender Pay-for-Me offer</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-border bg-background/80 p-3">
+                      <p className="text-xs text-muted-foreground">Original amount to finance</p>
+                      <p className="mt-1 text-lg font-semibold">
+                        GHS {offerAmount.toLocaleString()}
                       </p>
-                    ) : null}
-                    {totalRepayable > 0 ? (
-                      <p className="sm:col-span-2">
-                        Total repayable: GHS {totalRepayable.toLocaleString()}
+                    </div>
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-600/10 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Total repayable ({financing?.durationMonths} months @ {offerRate}%)
                       </p>
-                    ) : null}
+                      <p className="mt-1 text-lg font-semibold text-emerald-800 dark:text-emerald-300">
+                        GHS {totalRepayable.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
+                  {monthlyPayment > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Estimated monthly debit: GHS {monthlyPayment.toLocaleString()}
+                    </p>
+                  ) : null}
                   <p className="text-sm text-muted-foreground">
-                    Accepting sends your repayment mandate to the bank. Funds are disbursed to the
-                    merchant only after the mandate is active.
+                    Accepting generates your repayment mandate and sends it to the bank for auto-debit
+                    setup. Declining cancels the mandate.
                   </p>
-                  <Button
-                    size="sm"
-                    className="rounded-none bg-emerald-600 hover:bg-emerald-700"
-                    disabled={acceptOfferMutation.isPending}
-                    onClick={() => acceptOfferMutation.mutate()}
-                  >
-                    {acceptOfferMutation.isPending ? "Accepting…" : "Accept offer & send mandate to bank"}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-none bg-emerald-600 hover:bg-emerald-700"
+                      disabled={acceptOfferMutation.isPending}
+                      onClick={() => acceptOfferMutation.mutate()}
+                    >
+                      {acceptOfferMutation.isPending ? "Accepting…" : "Accept offer & send mandate"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-none"
+                      disabled={declineOfferMutation.isPending}
+                      onClick={() => declineOfferMutation.mutate()}
+                    >
+                      {declineOfferMutation.isPending ? "Declining…" : "Decline offer"}
+                    </Button>
+                    <Button asChild size="sm" variant="ghost" className="rounded-none">
+                      <Link href="/dashboard/buyer/mandates">View mandates</Link>
+                    </Button>
+                  </div>
                 </div>
               ) : null}
 

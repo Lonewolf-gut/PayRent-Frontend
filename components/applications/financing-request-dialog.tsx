@@ -69,6 +69,8 @@ export function FinancingRequestDialog({
   const [mandateConsent, setMandateConsent] = useState(false);
   const [bankAccountId, setBankAccountId] = useState("");
   const [docFiles, setDocFiles] = useState<Partial<Record<TenantFinancingDocType, File>>>({});
+  const [verificationCardNumber, setVerificationCardNumber] = useState("");
+  const [staffIdNumber, setStaffIdNumber] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submittedPropertyName, setSubmittedPropertyName] = useState("");
 
@@ -110,6 +112,20 @@ export function FinancingRequestDialog({
       const res = await fetch("/api/financing");
       const json = await res.json();
       return json.data ?? [];
+    },
+    enabled: open,
+  });
+
+  const { data: kycStatus } = useQuery({
+    queryKey: ["kyc-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/kyc");
+      const json = await res.json();
+      return json.data as {
+        nationalId?: string | null;
+        staffId?: string | null;
+        identityVerified?: boolean;
+      } | null;
     },
     enabled: open,
   });
@@ -160,6 +176,25 @@ export function FinancingRequestDialog({
       }
       if (!bankAccountId) {
         throw new Error("Select the bank account that will be debited for repayments.");
+      }
+      if (kycStatus?.nationalId) {
+        if (!verificationCardNumber.trim()) {
+          throw new Error("Enter your verification card number to match your KYC profile.");
+        }
+        if (
+          verificationCardNumber.trim().toUpperCase() !==
+          kycStatus.nationalId.trim().toUpperCase()
+        ) {
+          throw new Error("Verification card number does not match your KYC profile.");
+        }
+      }
+      if (kycStatus?.staffId) {
+        if (!staffIdNumber.trim()) {
+          throw new Error("Enter your Staff ID number to match your KYC profile.");
+        }
+        if (staffIdNumber.trim() !== kycStatus.staffId.trim()) {
+          throw new Error("Staff ID number does not match your KYC profile.");
+        }
       }
       if (existingFinancing) {
         throw new Error("You already have a Pay-for-Me request for this listing.");
@@ -260,15 +295,21 @@ export function FinancingRequestDialog({
     setDocFiles({});
     setDataConsent(false);
     setMandateConsent(false);
+    setVerificationCardNumber("");
+    setStaffIdNumber("");
   };
 
   const selectedBank = verifiedAccounts.find((a) => a.id === bankAccountId);
+  const requiresVerificationCard = Boolean(kycStatus?.nationalId);
+  const requiresStaffId = Boolean(kycStatus?.staffId);
   const canSubmit =
     Boolean(amount) &&
     dataConsent &&
     mandateConsent &&
     verifiedAccounts.length > 0 &&
     Boolean(bankAccountId) &&
+    (!requiresVerificationCard || Boolean(verificationCardNumber.trim())) &&
+    (!requiresStaffId || Boolean(staffIdNumber.trim())) &&
     !submitMutation.isPending &&
     !propertyLoading &&
     !existingFinancing;
@@ -300,12 +341,12 @@ export function FinancingRequestDialog({
           <DialogHeader>
             <DialogTitle>
               {propertyLoading
-                ? "Submit financing request"
-                : `Submit financing request${property?.name ? ` — ${property.name.replace(/^\[Demo\]\s*/i, "")}` : ""}`}
+                ? "Submit pay-for-me request"
+                : `Submit pay-for-me request${property?.name ? ` — ${property.name.replace(/^\[Demo\]\s*/i, "")}` : ""}`}
             </DialogTitle>
             <DialogDescription>
-              Complete the form, upload your payslip and bank statements (6–12 months), and
-              confirm your repayment bank account.
+              Confirm your identity details from KYC, upload supporting documents, and choose your
+              repayment bank account. Your mandate is generated after a lender sets your rate.
             </DialogDescription>
           </DialogHeader>
 
@@ -408,6 +449,39 @@ export function FinancingRequestDialog({
               </div>
 
               <div className="space-y-3 border-t pt-4">
+                <p className="text-sm font-medium">Identity cross-check</p>
+                <p className="text-xs text-muted-foreground">
+                  Re-enter details exactly as saved in your KYC profile so we can verify it is you.
+                </p>
+                {requiresVerificationCard ? (
+                  <div>
+                    <Label>Verification card number (Ghana Card)</Label>
+                    <Input
+                      className="rounded-none"
+                      value={verificationCardNumber}
+                      onChange={(e) => setVerificationCardNumber(e.target.value)}
+                      placeholder="Must match your KYC profile"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Complete identity verification in KYC to enable card number cross-check.
+                  </p>
+                )}
+                {requiresStaffId ? (
+                  <div>
+                    <Label>Staff ID number</Label>
+                    <Input
+                      className="rounded-none"
+                      value={staffIdNumber}
+                      onChange={(e) => setStaffIdNumber(e.target.value)}
+                      placeholder="Must match your KYC profile"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-medium">Supporting documents</p>
                 {requiredDocTypes.map((type) => (
                   <div key={type} className="space-y-2">
@@ -470,7 +544,7 @@ export function FinancingRequestDialog({
               disabled={!canSubmit}
               onClick={() => submitMutation.mutate()}
             >
-              {submitMutation.isPending ? "Submitting…" : "Submit financing request"}
+              {submitMutation.isPending ? "Submitting…" : "Submit pay-for-me request"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -480,14 +554,19 @@ export function FinancingRequestDialog({
         <DialogContent className="rounded-none sm:max-w-md" showCloseButton={false}>
           <DialogHeader className="items-center text-center">
             <CheckCircle2 className="mb-2 size-12 text-emerald-600" />
-            <DialogTitle>Financing request submitted</DialogTitle>
+            <DialogTitle>Pay-for-Me request submitted</DialogTitle>
             <DialogDescription>
               Your request for {submittedPropertyName.replace(/^\[Demo\]\s*/i, "")} was sent for
-              review. Track status on your financing applications dashboard.
+              review. Your mandate will appear after a lender sets your rate.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="sm:justify-center">
+          <DialogFooter className="sm:justify-center sm:flex-col sm:gap-2">
             <Button asChild className="rounded-none bg-emerald-600 hover:bg-emerald-700">
+              <Link href="/dashboard/buyer/mandates" onClick={handleConfirmClose}>
+                View mandates
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-none">
               <Link href="/dashboard/buyer/financing" onClick={handleConfirmClose}>
                 View my requests
               </Link>

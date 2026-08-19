@@ -132,7 +132,7 @@ export function PropertyActionPanel({
         onClick={onRequestFinancing}
       >
         <CreditCard className="mr-2 size-4" />
-        Submit financing request
+        Submit pay-for-me request
       </Button>
 
       {(contacts.landlord?.userId || contacts.agent?.userId) && (

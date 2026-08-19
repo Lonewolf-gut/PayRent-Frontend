@@ -69,7 +69,7 @@ export function BusinessRulesPanel() {
           ["serviceFeePercent", "Service fee (%)"],
           ["commissionFeePercent", "Commission fee (%)"],
           ["processingFeePercent", "Processing fee (%)"],
-          ["maxInterestRatePercent", "Max interest rate (%)"],
+          ["maxInterestRatePercent", "Max lender interest rate (%)"],
           ["minRepaymentMonths", "Min repayment months"],
           ["maxRepaymentMonths", "Max repayment months"],
           ["maxDebtToIncomePercent", "Max debt-to-income (%)"],

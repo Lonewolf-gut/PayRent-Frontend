@@ -2,6 +2,10 @@ import { prisma } from "@/lib/db/prisma";
 import { apiResponse, withAuth } from "@/lib/api/handler";
 import { buildMandatePreview } from "@/lib/utils/mandate-preview";
 
+type RepaymentPreference = {
+  bankAccountId?: string;
+};
+
 export const GET = withAuth(
   async (_req, _ctx, session) => {
     const tenant = await prisma.tenant.findUnique({
@@ -13,7 +17,7 @@ export const GET = withAuth(
     const requests = await prisma.financingRequest.findMany({
       where: {
         tenantId: tenant.id,
-        status: { not: "CREATED" },
+        status: { notIn: ["REJECTED", "WITHDRAWN", "CLOSED", "COMPLETED"] },
       },
       include: {
         property: { select: { name: true } },
@@ -36,9 +40,31 @@ export const GET = withAuth(
       orderBy: { createdAt: "desc" },
     });
 
+    const bankAccountIds = requests
+      .map((request) => (request.repaymentPreference as RepaymentPreference | null)?.bankAccountId)
+      .filter((id): id is string => Boolean(id));
+
+    const bankAccounts = bankAccountIds.length
+      ? await prisma.bankAccount.findMany({
+          where: { id: { in: bankAccountIds }, userId: session.user.id },
+          select: {
+            id: true,
+            bankName: true,
+            accountNumberMasked: true,
+            accountName: true,
+          },
+        })
+      : [];
+
+    const bankById = new Map(bankAccounts.map((account) => [account.id, account]));
+
     return apiResponse(
-      requests.map((request) =>
-        buildMandatePreview({
+      requests.map((request) => {
+        const bankAccountId = (request.repaymentPreference as RepaymentPreference | null)
+          ?.bankAccountId;
+        const repaymentBankAccount = bankAccountId ? bankById.get(bankAccountId) ?? null : null;
+
+        return buildMandatePreview({
           ...request,
           requestedAmount: Number(request.requestedAmount),
           approvedAmount: request.approvedAmount ? Number(request.approvedAmount) : null,
@@ -53,8 +79,9 @@ export const GET = withAuth(
                 monthlyPayment: Number(request.feeDisclosure.monthlyPayment),
               }
             : null,
-        })
-      )
+          repaymentBankAccount,
+        });
+      })
     );
   },
   { roles: ["BUYER"] }

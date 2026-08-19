@@ -26,6 +26,7 @@ export type MandatePreviewData = {
   documentUrl?: string | null;
   previewStatus: MandatePreviewStatus;
   buyerAcceptedAt?: string | null;
+  ratePricingVisible: boolean;
 };
 
 type FinancingLike = {
@@ -58,6 +59,11 @@ type FinancingLike = {
       accountName?: string | null;
     } | null;
   } | null;
+  repaymentBankAccount?: {
+    bankName?: string | null;
+    accountNumberMasked?: string | null;
+    accountName?: string | null;
+  } | null;
 };
 
 function toNumber(value: unknown): number | null {
@@ -74,8 +80,13 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     0;
   const interestRate =
     toNumber(financing.offeredInterestRate) ?? toNumber(financing.feeDisclosure?.interestRate);
-  const totalRepayable = toNumber(financing.feeDisclosure?.totalRepayable);
-  const monthlyPayment = toNumber(financing.feeDisclosure?.monthlyPayment);
+  const totalRepayable = financing.buyerAcceptedAt
+    ? toNumber(financing.feeDisclosure?.totalRepayable)
+    : null;
+  const monthlyPayment = financing.buyerAcceptedAt
+    ? toNumber(financing.feeDisclosure?.monthlyPayment)
+    : null;
+  const ratePricingVisible = Boolean(financing.buyerAcceptedAt);
 
   let previewStatus: MandatePreviewStatus = "awaiting_lender";
   if (financing.status === "REJECTED" || financing.status === "WITHDRAWN") {
@@ -86,7 +97,11 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     if (financing.mandate.status === "ACTIVE") previewStatus = "active";
     else if (["BANK_PROCESSING", "ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"].includes(financing.mandate.status)) {
       previewStatus = "bank_processing";
-    } else previewStatus = "mandate_pending";
+    } else if (financing.mandate.status === "DRAFT" && !financing.buyerAcceptedAt) {
+      previewStatus = "awaiting_lender";
+    } else {
+      previewStatus = "mandate_pending";
+    }
   } else if (financing.buyerAcceptedAt) {
     previewStatus = "mandate_pending";
   }
@@ -102,9 +117,18 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     mandateId: financing.mandate?.id ?? null,
     propertyName: financing.property?.name ?? "Listing",
     borrowerName,
-    bankName: financing.mandate?.bankAccount?.bankName ?? null,
-    accountNumberMasked: financing.mandate?.bankAccount?.accountNumberMasked ?? null,
-    accountName: financing.mandate?.bankAccount?.accountName ?? null,
+    bankName:
+      financing.mandate?.bankAccount?.bankName ??
+      financing.repaymentBankAccount?.bankName ??
+      null,
+    accountNumberMasked:
+      financing.mandate?.bankAccount?.accountNumberMasked ??
+      financing.repaymentBankAccount?.accountNumberMasked ??
+      null,
+    accountName:
+      financing.mandate?.bankAccount?.accountName ??
+      financing.repaymentBankAccount?.accountName ??
+      null,
     principalAmount,
     interestRate,
     durationMonths: financing.durationMonths,
@@ -118,5 +142,6 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     buyerAcceptedAt: financing.buyerAcceptedAt
       ? new Date(financing.buyerAcceptedAt).toISOString()
       : null,
+    ratePricingVisible,
   };
 }

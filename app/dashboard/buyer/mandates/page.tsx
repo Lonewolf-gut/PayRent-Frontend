@@ -7,9 +7,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MandatePreviewCard } from "@/components/mandates/mandate-preview-card";
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 type MandateRecord = {
@@ -23,6 +30,8 @@ type MandateRecord = {
 export default function TenantMandatesPage() {
   const queryClient = useQueryClient();
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [selectedFinancingRequestId, setSelectedFinancingRequestId] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { data: previews = [], isLoading: previewsLoading } = useQuery({
     queryKey: ["mandate-overview"],
@@ -86,7 +95,8 @@ export default function TenantMandatesPage() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
-      toast.success("Mandate document uploaded");
+      toast.success("Scanned mandate uploaded");
+      setSelectedFile(null);
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
       queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
     } catch (e) {
@@ -99,14 +109,85 @@ export default function TenantMandatesPage() {
   const getMandateForPreview = (preview: MandatePreviewData) =>
     mandates.find((mandate) => mandate.id === preview.mandateId);
 
+  const uploadablePreviews = previews.filter((preview) => preview.mandateId);
+  const selectedPreview =
+    uploadablePreviews.find((preview) => preview.financingRequestId === selectedFinancingRequestId) ??
+    uploadablePreviews[0];
+
+  const handleHeaderUpload = async () => {
+    if (!selectedPreview?.mandateId) {
+      toast.error("Select a Pay-for-Me request first");
+      return;
+    }
+    if (!selectedFile) {
+      toast.error("Choose a scanned mandate file to upload");
+      return;
+    }
+    await handleUpload(selectedPreview.mandateId, selectedFile);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Repayment mandates</h1>
-        <p className="text-muted-foreground">
-          Track platform-generated mandates and upload your own signed bank mandate forms for
-          Pay-for-Me financing.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Repayment mandates</h1>
+          <p className="text-muted-foreground">
+            Your mandate appears as soon as you submit a Pay-for-Me request. Repayment totals are
+            added after you accept the lender rate. You can also upload a bank-signed scanned
+            mandate.
+          </p>
+        </div>
+
+        {uploadablePreviews.length > 0 ? (
+          <div className="w-full shrink-0 rounded-xl border border-border bg-muted/20 p-4 lg:max-w-md">
+            <div className="mb-3 flex items-center gap-2">
+              <Upload className="h-4 w-4 text-emerald-600" />
+              <p className="text-sm font-medium">Upload scanned mandate</p>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="mandate-request-select">Pay-for-Me request</Label>
+                <Select
+                  value={selectedPreview?.financingRequestId ?? ""}
+                  onValueChange={setSelectedFinancingRequestId}
+                >
+                  <SelectTrigger id="mandate-request-select">
+                    <SelectValue placeholder="Select request" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uploadablePreviews.map((preview) => (
+                      <SelectItem
+                        key={preview.financingRequestId}
+                        value={preview.financingRequestId}
+                      >
+                        {preview.propertyName.replace(/^\[Demo\]\s*/i, "")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="mandate-file-upload">Scanned form (PDF or image)</Label>
+                <Input
+                  id="mandate-file-upload"
+                  type="file"
+                  accept=".pdf,image/*"
+                  disabled={Boolean(uploadingId)}
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                disabled={Boolean(uploadingId) || !selectedFile}
+                onClick={handleHeaderUpload}
+              >
+                {uploadingId ? "Uploading..." : "Upload scanned mandate"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {previewsLoading ? (
@@ -114,8 +195,8 @@ export default function TenantMandatesPage() {
       ) : !previews.length ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            No Pay-for-Me requests yet. Submit a request from a listing, then your mandate will
-            appear here after a lender sets your rate.
+            No Pay-for-Me requests yet. Submit a request from a listing and your mandate preview
+            will appear here right away.
           </CardContent>
         </Card>
       ) : (
@@ -133,38 +214,22 @@ export default function TenantMandatesPage() {
                 </div>
               ) : null}
 
-              {mandate?.mandateSource === "SCANNED_UPLOAD" &&
-              ["PENDING_SUBMISSION", "DRAFT", "REJECTED"].includes(mandate.status) ? (
-                <div className="space-y-3 rounded-xl border border-dashed border-border p-4">
-                  <p className="text-sm font-medium">Upload your signed mandate</p>
-                  <Label htmlFor={`upload-${mandate.id}`}>Scanned mandate form (PDF or image)</Label>
-                  <Input
-                    id={`upload-${mandate.id}`}
-                    type="file"
-                    accept=".pdf,image/*"
-                    disabled={uploadingId === mandate.id}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUpload(mandate.id, file);
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Upload your bank-signed mandate, then submit it for admin review.
-                  </p>
-                </div>
+              {mandate?.documentUrl && mandate.mandateSource === "SCANNED_UPLOAD" ? (
+                <p className="text-xs text-muted-foreground">
+                  Scanned mandate uploaded. Submit it for admin review when you are ready.
+                </p>
               ) : null}
 
-              {mandate && ["PENDING_SUBMISSION", "DRAFT"].includes(mandate.status) ? (
+              {mandate &&
+              mandate.mandateSource === "SCANNED_UPLOAD" &&
+              ["PENDING_SUBMISSION", "DRAFT", "REJECTED"].includes(mandate.status) ? (
                 <Button
                   size="sm"
                   className="bg-emerald-600 hover:bg-emerald-700"
-                  disabled={
-                    submitMutation.isPending ||
-                    (mandate.mandateSource === "SCANNED_UPLOAD" && !mandate.documentUrl)
-                  }
+                  disabled={submitMutation.isPending || !mandate.documentUrl}
                   onClick={() => submitMutation.mutate(mandate.id)}
                 >
-                  Submit mandate for review
+                  Submit scanned mandate for review
                 </Button>
               ) : null}
 

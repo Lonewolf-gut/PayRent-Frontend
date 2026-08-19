@@ -24,7 +24,14 @@ export const POST = withAuth(
     const documentUrl = await saveMandateDocument(file, session.user.id);
     const updated = await prisma.mandate.update({
       where: { id },
-      data: { documentUrl },
+      data: {
+        documentUrl,
+        mandateSource: "SCANNED_UPLOAD",
+        status:
+          mandate.status === "DRAFT" || mandate.status === "REJECTED"
+            ? "PENDING_SUBMISSION"
+            : mandate.status,
+      },
     });
 
     return apiResponse(updated, 200, "Mandate document uploaded.");

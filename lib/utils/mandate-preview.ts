@@ -15,6 +15,7 @@ export type MandatePreviewData = {
   bankName?: string | null;
   accountNumberMasked?: string | null;
   accountName?: string | null;
+  bankAccountId?: string | null;
   principalAmount: number;
   interestRate?: number | null;
   durationMonths: number;
@@ -60,6 +61,7 @@ type FinancingLike = {
     } | null;
   } | null;
   repaymentBankAccount?: {
+    id?: string;
     bankName?: string | null;
     accountNumberMasked?: string | null;
     accountName?: string | null;
@@ -115,6 +117,11 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
   return {
     financingRequestId: financing.id,
     mandateId: financing.mandate?.id ?? null,
+    bankAccountId:
+      (financing.repaymentBankAccount as { id?: string } | null | undefined)?.id ??
+      (financing as { repaymentPreference?: { bankAccountId?: string } }).repaymentPreference
+        ?.bankAccountId ??
+      null,
     propertyName: financing.property?.name ?? "Listing",
     borrowerName,
     bankName:

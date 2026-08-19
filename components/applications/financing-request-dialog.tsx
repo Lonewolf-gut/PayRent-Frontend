@@ -282,6 +282,8 @@ export function FinancingRequestDialog({
       queryClient.invalidateQueries({ queryKey: ["applications"] });
       queryClient.invalidateQueries({ queryKey: ["financing"] });
       queryClient.invalidateQueries({ queryKey: ["buyer-financing-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["mandates"] });
       onOpenChange(false);
       setSubmittedPropertyName(propertyName ?? "this listing");
       setConfirmOpen(true);

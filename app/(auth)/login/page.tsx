@@ -54,8 +54,8 @@ export default function LoginPage() {
         <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
           {roles.map((role) => (
             <Link key={role.key} href={`/login/access?role=${role.key}`}>
-              <Card className="h-full border border-slate-200 bg-white text-slate-900 shadow-sm ring-0 transition hover:border-emerald-500 hover:shadow-md">
-                <CardHeader className="p-4 sm:p-6">
+              <Card className="h-full gap-0 border border-slate-200 bg-white py-0 text-slate-900 shadow-sm ring-0 transition hover:border-emerald-500 hover:shadow-md">
+                <CardHeader className="space-y-1.5 p-4 pb-2 sm:p-6 sm:pb-2">
                   <role.icon className="h-7 w-7 text-emerald-600 sm:h-8 sm:w-8" />
                   <CardTitle className="text-sm text-emerald-950 sm:text-base">{role.title}</CardTitle>
                 </CardHeader>

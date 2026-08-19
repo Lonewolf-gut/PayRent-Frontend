@@ -118,44 +118,7 @@ export function PropertyLocationFields({ value, onChange, disabled }: Props) {
             onChange={(e) => set("landmark", e.target.value)}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="latitude">GPS Latitude</Label>
-          <Input
-            id="latitude"
-            type="number"
-            step="any"
-            value={value.latitude}
-            disabled={disabled}
-            placeholder="e.g. 5.6037"
-            onChange={(e) => set("latitude", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="longitude">GPS Longitude</Label>
-          <Input
-            id="longitude"
-            type="number"
-            step="any"
-            value={value.longitude}
-            disabled={disabled}
-            placeholder="e.g. -0.1870"
-            onChange={(e) => set("longitude", e.target.value)}
-          />
-        </div>
       </div>
-      {value.latitude && value.longitude ? (
-        <div className="overflow-hidden rounded-lg border">
-          <iframe
-            title="Property location map"
-            className="h-48 w-full"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            src={`https://maps.google.com/maps?q=${encodeURIComponent(
-              `${value.latitude},${value.longitude}`
-            )}&z=15&output=embed`}
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

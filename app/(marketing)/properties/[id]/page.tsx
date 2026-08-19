@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -84,32 +84,6 @@ export default function PropertyDetailPage() {
     markSavedPropertyViewedAndSyncCount(queryClient, propertyIds, id);
   }, [id, queryClient, savedItems, session?.user?.role]);
 
-  const chatMutation = useMutation({
-    mutationFn: async ({
-      recipientUserId,
-      label,
-    }: {
-      recipientUserId: string;
-      label: string;
-    }) => {
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientId: recipientUserId,
-          content: `Hi ${label}, I'm interested in ${property?.name ?? "this property"}.`,
-        }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? "Unable to start chat");
-      return json.data;
-    },
-    onSuccess: () => {
-      router.push("/dashboard/buyer/messages");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   if (isLoading) return <p className="p-12 text-center text-muted-foreground">Loading...</p>;
   if (!property) return <p className="p-12 text-center">Property not found</p>;
 
@@ -145,9 +119,9 @@ export default function PropertyDetailPage() {
       propertyStatus={property.status}
       onDepositPrompt={() => setDepositPromptOpen(true)}
       onRequestFinancing={() => setFinancingOpen(true)}
-      onChat={(recipientUserId, label) =>
-        chatMutation.mutate({ recipientUserId, label })
-      }
+      onChat={(recipientUserId) => {
+        router.push(`/dashboard/buyer/messages?recipient=${recipientUserId}`);
+      }}
       contacts={{
         landlord: displayLandlord?.userId
           ? { userId: displayLandlord.userId, name: displayLandlord.name }

@@ -101,10 +101,7 @@ export function useMessaging(startRecipientId?: string | null) {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientId: startRecipientId,
-          content: "Hello, I'd like to continue our conversation here.",
-        }),
+        body: JSON.stringify({ recipientId: startRecipientId }),
       });
       const json = await res.json();
       if (!cancelled && json.success) {

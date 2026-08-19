@@ -98,6 +98,8 @@ export default function LandlordPropertiesPage() {
     return statusMap[status] ?? { label: status, variant: "secondary" as const };
   };
 
+  const isApprovedListing = (status: string) => status === "ACTIVE";
+
   const optionalNumberField = {
     setValueAs: (value: string) => {
       if (value === "" || value == null) return undefined;
@@ -447,6 +449,10 @@ export default function LandlordPropertiesPage() {
   };
 
   const beginEdit = (property: any) => {
+    if (isApprovedListing(property.status)) {
+      toast.error("Approved listings cannot be edited.");
+      return;
+    }
     setEditingPropertyId(property.id);
     setShowForm(false);
     setEditImages([]);
@@ -538,9 +544,11 @@ export default function LandlordPropertiesPage() {
                   <Badge variant={approvalStatus.variant}>{approvalStatus.label}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => beginEdit(property)}>
-                    Edit
-                  </Button>
+                  {!isApprovedListing(property.status) ? (
+                    <Button size="sm" variant="outline" onClick={() => beginEdit(property)}>
+                      Edit
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="destructive"

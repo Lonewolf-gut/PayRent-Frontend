@@ -94,7 +94,11 @@ export default function LandlordAgentsPage() {
           </CardContent>
         </Card>
       ) : (
-        properties.map((property) => (
+        properties.map((property) => {
+          const affiliateLocked =
+            property.status === "ACTIVE" && Boolean(property.agentUserId);
+
+          return (
           <Card key={property.id}>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
@@ -104,6 +108,11 @@ export default function LandlordAgentsPage() {
                     ? `Assigned: ${property.assignedAgent.fullName} (${property.assignedAgent.user.email})`
                     : "No Affiliate assigned"}
                 </p>
+                {affiliateLocked ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Affiliate is locked because this listing is approved.
+                  </p>
+                ) : null}
               </div>
               <StatusBadge status={property.status} />
             </CardHeader>
@@ -117,7 +126,7 @@ export default function LandlordAgentsPage() {
                       agentProfileId: value === "none" ? null : value,
                     })
                   }
-                  disabled={assignMutation.isPending || !agents.length}
+                  disabled={affiliateLocked || assignMutation.isPending || !agents.length}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Affiliate" />
@@ -133,7 +142,7 @@ export default function LandlordAgentsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {property.agentUserId ? (
+              {property.agentUserId && !affiliateLocked ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -150,7 +159,8 @@ export default function LandlordAgentsPage() {
               ) : null}
             </CardContent>
           </Card>
-        ))
+          );
+        })
       )}
     </div>
   );

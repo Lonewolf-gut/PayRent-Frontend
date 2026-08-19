@@ -245,54 +245,6 @@ export function VerificationPromptDialog() {
             <ShieldCheck className="h-5 w-5 text-emerald-600" />
             Complete your verification
           </DialogTitle>
-<<<<<<< HEAD
-          <DialogDescription>
-            Finish these steps to unlock the full PayForMe experience and keep your account in good
-            standing.
-          </DialogDescription>
-        </DialogHeader>
-
-        <ul className="space-y-3 py-2">
-          <li className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5">
-            {emailVerified ? (
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-            ) : (
-              <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            )}
-            <div>
-              <p className="text-sm font-medium">Verify your email</p>
-              <p className="text-xs text-muted-foreground">
-                {emailVerified
-                  ? "Your email address is verified."
-                  : "Check your inbox for the verification code or open the verify email page."}
-              </p>
-            </div>
-          </li>
-
-          {checklist.map((item) => (
-            <li
-              key={item.id}
-              className="flex items-start gap-3 rounded-lg border border-border px-3 py-2.5"
-            >
-              {item.complete ? (
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-              ) : item.pending ? (
-                <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-              ) : (
-                <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <div>
-                <p className="text-sm font-medium">{item.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  {item.complete
-                    ? "Completed."
-                    : item.pending
-                      ? "Submitted and awaiting review."
-                      : "Required before you can use all platform features."}
-                </p>
-              </div>
-            </li>
-=======
           <DialogDescription className="text-xs leading-relaxed sm:text-sm">
             Finish these steps to unlock the full PayForMe experience. Tap any item below to go
             directly to where you can complete it.
@@ -302,7 +254,6 @@ export function VerificationPromptDialog() {
         <ul className="max-h-[min(46vh,320px)] space-y-2 overflow-y-auto overscroll-contain py-1 sm:space-y-2.5">
           {verificationItems.map((item) => (
             <VerificationChecklistRow key={item.id} item={item} onNavigate={dismissDialog} />
->>>>>>> 1c2c3f0 (Make verification prompt items clickable with direct navigation links)
           ))}
         </ul>
 
@@ -310,13 +261,8 @@ export function VerificationPromptDialog() {
           <Button type="button" variant="outline" onClick={dismissDialog}>
             Remind me later
           </Button>
-<<<<<<< HEAD
-          <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
-            <Link href={continueHref ?? "/verify-email"} onClick={dismissDialog}>
-=======
           <Button asChild size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700 sm:h-10">
             <Link href={continueHref} onClick={dismissDialog}>
->>>>>>> 1c2c3f0 (Make verification prompt items clickable with direct navigation links)
               {continueLabel}
             </Link>
           </Button>

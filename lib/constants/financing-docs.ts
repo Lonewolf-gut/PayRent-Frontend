@@ -35,8 +35,8 @@ export const KYC_DOCUMENT_LABELS: Record<string, string> = {
   COMPANY_REGISTRATION: "Company registration certificate",
   COMPANY_TIN: "Company TIN certificate",
   EMPLOYMENT_LETTER: "Employment letter",
-  STAFF_ID: "Staff ID document",
-  SSNIT_CARD: "SSNIT registration document",
+  STAFF_ID: "Staff ID card",
+  SSNIT_CARD: "SSNIT card",
   ADDRESS_PROOF: "Address proof (utility bill)",
 };
 

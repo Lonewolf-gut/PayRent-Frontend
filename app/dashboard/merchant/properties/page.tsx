@@ -77,6 +77,26 @@ export default function LandlordPropertiesPage() {
   );
   const [addSurveyPlan, setAddSurveyPlan] = useState<File | null>(null);
   const [editSurveyPlan, setEditSurveyPlan] = useState<File | null>(null);
+  const [removedExistingImageIds, setRemovedExistingImageIds] = useState<string[]>([]);
+
+  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" | "ghost" }> = {
+    DRAFT: { label: "Draft", variant: "secondary" },
+    PENDING_VERIFICATION: { label: "Pending verification", variant: "outline" },
+    ACTIVE: { label: "Active", variant: "default" },
+    RENTED: { label: "Rented", variant: "destructive" },
+    TRIAL_SUSPENDED: { label: "Hidden (upgrade required)", variant: "secondary" },
+    INACTIVE: { label: "Inactive", variant: "ghost" },
+  };
+
+  const getListingApprovalStatus = (status: string) => {
+    if (status === "ACTIVE") {
+      return { label: "Approved", variant: "default" as const };
+    }
+    if (status === "PENDING_VERIFICATION" || status === "DRAFT") {
+      return { label: "Pending", variant: "outline" as const };
+    }
+    return statusMap[status] ?? { label: status, variant: "secondary" as const };
+  };
 
   const optionalNumberField = {
     setValueAs: (value: string) => {
@@ -274,32 +294,52 @@ export default function LandlordPropertiesPage() {
 
   const handleImagesChange = (files: FileList | null) => {
     if (!files) {
-      setImages([]);
       return;
     }
 
-    const selected = Array.from(files).slice(0, 10);
-    if (files.length > 10) {
-      setFileError("Maximum 10 images allowed.");
-    } else {
-      setFileError(null);
-    }
-    setImages(selected);
+    const selected = Array.from(files);
+    setImages((current) => {
+      const merged = [...current, ...selected].slice(0, 10);
+      if (merged.length > 10) {
+        setFileError("Maximum 10 images allowed.");
+      } else {
+        setFileError(null);
+      }
+      return merged;
+    });
   };
 
   const handleEditImagesChange = (files: FileList | null) => {
     if (!files) {
-      setEditImages([]);
       return;
     }
 
-    const selected = Array.from(files).slice(0, 10);
-    if (files.length > 10) {
-      setEditFileError("Maximum 10 images allowed.");
-    } else {
-      setEditFileError(null);
-    }
-    setEditImages(selected);
+    const selected = Array.from(files);
+    setEditImages((current) => {
+      const merged = [...current, ...selected].slice(0, 10);
+      if (merged.length > 10) {
+        setEditFileError("Maximum 10 images allowed.");
+      } else {
+        setEditFileError(null);
+      }
+      return merged;
+    });
+  };
+
+  const removeAddImage = (index: number) => {
+    setImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setFileError(null);
+  };
+
+  const removeEditImage = (index: number) => {
+    setEditImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setEditFileError(null);
+  };
+
+  const removeExistingImage = (imageId: string) => {
+    setRemovedExistingImageIds((current) =>
+      current.includes(imageId) ? current : [...current, imageId]
+    );
   };
 
   const createProperty = useMutation({
@@ -372,6 +412,9 @@ export default function LandlordPropertiesPage() {
         formData.append("googleMapUrl", editMapUrl);
       }
       editImages.slice(0, 10).forEach((file) => formData.append("images", file));
+      if (removedExistingImageIds.length > 0) {
+        formData.append("removedImageIds", JSON.stringify(removedExistingImageIds));
+      }
 
       const res = await fetch(`/api/properties/${data.id}`, {
         method: "PATCH",
@@ -391,6 +434,7 @@ export default function LandlordPropertiesPage() {
       setEditingPropertyId(null);
       setEditImages([]);
       setEditMapUrl("");
+      setRemovedExistingImageIds([]);
       setEditLocation(emptyPropertyLocation());
       setEditAmenities([]);
       setEditAttributes(emptyAttributesForType("APARTMENT"));
@@ -430,15 +474,6 @@ export default function LandlordPropertiesPage() {
     await updateProperty.mutateAsync({ ...data, id: editingPropertyId });
   };
 
-  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" | "ghost" }> = {
-    DRAFT: { label: "Draft", variant: "secondary" },
-    PENDING_VERIFICATION: { label: "Pending verification", variant: "outline" },
-    ACTIVE: { label: "Active", variant: "default" },
-    RENTED: { label: "Rented", variant: "destructive" },
-    TRIAL_SUSPENDED: { label: "Hidden (upgrade required)", variant: "secondary" },
-    INACTIVE: { label: "Inactive", variant: "ghost" },
-  };
-
   const editingProperty = landlordProperties?.find((property: any) => property.id === editingPropertyId);
 
   const beginEdit = (property: any) => {
@@ -446,6 +481,7 @@ export default function LandlordPropertiesPage() {
     setShowForm(false);
     setEditImages([]);
     setEditMapUrl("");
+    setRemovedExistingImageIds([]);
     const propertyType = property.propertyType as PropertyType;
     setEditCategory(getCategoryForType(propertyType));
     setEditLocation({
@@ -487,6 +523,7 @@ export default function LandlordPropertiesPage() {
     setEditingPropertyId(null);
     setEditImages([]);
     setEditMapUrl("");
+    setRemovedExistingImageIds([]);
     setEditLocation(emptyPropertyLocation());
     setEditAmenities([]);
     setEditAttributes(emptyAttributesForType("APARTMENT"));
@@ -516,7 +553,7 @@ export default function LandlordPropertiesPage() {
       ) : landlordProperties?.length ? (
         <div className="space-y-3">
           {landlordProperties.map((property: any) => {
-            const status = statusMap[property.status] ?? { label: property.status, variant: "default" };
+            const approvalStatus = getListingApprovalStatus(property.status);
             return (
               <div
                 key={property.id}
@@ -528,6 +565,7 @@ export default function LandlordPropertiesPage() {
                     {PROPERTY_TYPE_LABELS[property.propertyType as PropertyType] ??
                       property.propertyType}
                   </Badge>
+                  <Badge variant={approvalStatus.variant}>{approvalStatus.label}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => beginEdit(property)}>
@@ -695,9 +733,15 @@ export default function LandlordPropertiesPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label>Photos</Label>
-                {editingProperty.images?.length ? (
+                {editingProperty.images?.filter(
+                  (image: { id: string }) => !removedExistingImageIds.includes(image.id)
+                ).length ? (
                   <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    {editingProperty.images.map((image: any) => (
+                    {editingProperty.images
+                      .filter(
+                        (image: { id: string }) => !removedExistingImageIds.includes(image.id)
+                      )
+                      .map((image: any) => (
                       <div key={image.id} className="relative h-24 overflow-hidden border border-slate-200 bg-white">
                         <Image
                           src={image.url}
@@ -706,6 +750,15 @@ export default function LandlordPropertiesPage() {
                           className="object-cover"
                           unoptimized
                         />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="absolute right-1 top-1 h-7 px-2 text-xs"
+                          onClick={() => removeExistingImage(image.id)}
+                        >
+                          Remove
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -734,6 +787,15 @@ export default function LandlordPropertiesPage() {
                           className="object-cover"
                           unoptimized
                         />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="absolute right-1 top-1 h-7 px-2 text-xs"
+                          onClick={() => removeEditImage(index)}
+                        >
+                          Remove
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -917,6 +979,15 @@ export default function LandlordPropertiesPage() {
                           className="object-cover"
                           unoptimized
                         />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="absolute right-1 top-1 h-7 px-2 text-xs"
+                          onClick={() => removeAddImage(index)}
+                        >
+                          Remove
+                        </Button>
                       </div>
                     ))}
                   </div>

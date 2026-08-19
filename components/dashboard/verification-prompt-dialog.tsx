@@ -45,10 +45,6 @@ function getDismissedSessionKey(userId: string) {
   return `verification-prompt-dismissed:${userId}`;
 }
 
-function getCompleteStorageKey(userId: string) {
-  return `verification-prompt-complete:${userId}`;
-}
-
 function VerificationChecklistRow({
   item,
   onNavigate,
@@ -183,25 +179,16 @@ export function VerificationPromptDialog() {
     if (!showVerificationUi || !userId || !isFetched) return;
     if (!pathname.startsWith("/dashboard")) return;
 
-    const completeKey = getCompleteStorageKey(userId);
-    const dismissedKey = getDismissedSessionKey(userId);
-    const freshLogin = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
-
     if (!needsVerificationPrompt || fullyVerified) {
-      localStorage.setItem(completeKey, "true");
-      sessionStorage.removeItem(FRESH_LOGIN_KEY);
-      sessionStorage.removeItem(dismissedKey);
       setOpen(false);
       return;
     }
 
-    localStorage.removeItem(completeKey);
-
+    const dismissedKey = getDismissedSessionKey(userId);
+    const freshLogin = sessionStorage.getItem(FRESH_LOGIN_KEY) === "1";
     if (freshLogin) {
-      sessionStorage.removeItem(dismissedKey);
       sessionStorage.removeItem(FRESH_LOGIN_KEY);
-      setOpen(true);
-      return;
+      sessionStorage.removeItem(dismissedKey);
     }
 
     const dismissedThisSession = sessionStorage.getItem(dismissedKey) === "true";
@@ -213,9 +200,6 @@ export function VerificationPromptDialog() {
     pathname,
     fullyVerified,
     needsVerificationPrompt,
-    status,
-    emailVerified,
-    phoneVerified,
   ]);
 
   const dismissDialog = () => {

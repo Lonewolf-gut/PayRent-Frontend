@@ -111,13 +111,6 @@ export function MandatePreviewCard({
           </>
         ) : null}
 
-        {preview.previewStatus === "awaiting_buyer" && !showRatePricing ? (
-          <p className="text-sm text-muted-foreground">
-            A lender has offered a rate. Review and accept the offer to include repayment totals on
-            your mandate and send it to the bank.
-          </p>
-        ) : null}
-
         <div className="flex flex-wrap gap-2 print:hidden">
           {showDocument ? (
             <Button asChild size="sm" variant="outline">

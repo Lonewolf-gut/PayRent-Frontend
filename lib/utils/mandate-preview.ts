@@ -66,6 +66,9 @@ type FinancingLike = {
     accountNumberMasked?: string | null;
     accountName?: string | null;
   } | null;
+  repaymentPreference?: {
+    bankAccountId?: string;
+  } | null;
 };
 
 function toNumber(value: unknown): number | null {
@@ -97,7 +100,11 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     previewStatus = "awaiting_buyer";
   } else if (financing.mandate) {
     if (financing.mandate.status === "ACTIVE") previewStatus = "active";
-    else if (["BANK_PROCESSING", "ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"].includes(financing.mandate.status)) {
+    else if (
+      ["BANK_PROCESSING", "ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"].includes(
+        financing.mandate.status
+      )
+    ) {
       previewStatus = "bank_processing";
     } else if (financing.mandate.status === "DRAFT" && !financing.buyerAcceptedAt) {
       previewStatus = "awaiting_lender";
@@ -118,10 +125,7 @@ export function buildMandatePreview(financing: FinancingLike): MandatePreviewDat
     financingRequestId: financing.id,
     mandateId: financing.mandate?.id ?? null,
     bankAccountId:
-      (financing.repaymentBankAccount as { id?: string } | null | undefined)?.id ??
-      (financing as { repaymentPreference?: { bankAccountId?: string } }).repaymentPreference
-        ?.bankAccountId ??
-      null,
+      financing.repaymentBankAccount?.id ?? financing.repaymentPreference?.bankAccountId ?? null,
     propertyName: financing.property?.name ?? "Listing",
     borrowerName,
     bankName:

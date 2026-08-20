@@ -1,21 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { MandatePreviewCard } from "@/components/mandates/mandate-preview-card";
-import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
+import { buildMandatePreview, type MandatePreviewData } from "@/lib/utils/mandate-preview";
 import { RefreshCw, Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,22 +18,102 @@ type MandateRecord = {
   financingRequest?: { id: string; property?: { name: string } };
 };
 
-async function fetchMandatePreviews(): Promise<MandatePreviewData[]> {
-  const res = await fetch("/api/mandates/overview");
-  const json = await res.json();
+const TERMINAL_FINANCING_STATUSES = new Set([
+  "REJECTED",
+  "WITHDRAWN",
+  "CLOSED",
+  "COMPLETED",
+]);
 
-  if (!res.ok || json.success === false) {
-    throw new Error(json.message ?? "Could not load mandate previews");
+async function fetchMandatePreviews(): Promise<MandatePreviewData[]> {
+  const endpoints = ["/api/mandates/overview", "/api/financing/mandate-previews"];
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint);
+      const json = await res.json();
+      if (res.ok && json.success !== false && Array.isArray(json.data)) {
+        const active = (json.data as MandatePreviewData[]).filter(
+          (preview) => !TERMINAL_FINANCING_STATUSES.has(preview.financingStatus)
+        );
+        if (active.length > 0) return active;
+      }
+    } catch {
+      // try next endpoint
+    }
   }
 
-  return (json.data ?? []) as MandatePreviewData[];
+  const financingRes = await fetch("/api/financing");
+  const financingJson = await financingRes.json();
+  if (!financingRes.ok || financingJson.success === false) {
+    throw new Error(financingJson.message ?? "Could not load mandates");
+  }
+
+  const requests = (financingJson.data ?? []).filter(
+    (request: { status: string }) => !TERMINAL_FINANCING_STATUSES.has(request.status)
+  );
+
+  if (!requests.length) return [];
+
+  for (const request of requests) {
+    try {
+      await fetch("/api/mandates/ensure-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ financingRequestId: request.id }),
+      });
+    } catch {
+      // continue — preview load may still work
+    }
+  }
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint);
+      const json = await res.json();
+      if (res.ok && json.success !== false && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data as MandatePreviewData[];
+      }
+    } catch {
+      // try next endpoint
+    }
+  }
+
+  return requests.map((request: Record<string, unknown>) =>
+    buildMandatePreview({
+      id: request.id as string,
+      status: request.status as string,
+      requestedAmount: request.requestedAmount as number,
+      approvedAmount: request.approvedAmount as number | null,
+      offeredInterestRate: request.offeredInterestRate as number | null,
+      durationMonths: request.durationMonths as number,
+      buyerAcceptedAt: request.buyerAcceptedAt as string | null,
+      property: request.property as { name?: string },
+      tenant: request.tenant as {
+        fullName?: string;
+        user?: { fullName?: string; email?: string };
+      },
+      feeDisclosure: request.feeDisclosure as {
+        principalAmount?: number;
+        interestRate?: number;
+        totalRepayable?: number;
+        monthlyPayment?: number;
+      } | null,
+      mandate: request.mandate as {
+        id: string;
+        status: string;
+        mandateSource: string;
+        documentUrl?: string | null;
+      } | null,
+      repaymentPreference: request.repaymentPreference as { bankAccountId?: string } | null,
+    })
+  );
 }
 
 export default function TenantMandatesPage() {
   const queryClient = useQueryClient();
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [selectedFinancingRequestId, setSelectedFinancingRequestId] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const {
     data: previews = [],
@@ -69,12 +140,6 @@ export default function TenantMandatesPage() {
       toast.error(previewsErrorMessage.message);
     }
   }, [previewsError, previewsErrorMessage]);
-
-  useEffect(() => {
-    if (!selectedFinancingRequestId && previews.length > 0) {
-      setSelectedFinancingRequestId(previews[0].financingRequestId);
-    }
-  }, [previews, selectedFinancingRequestId]);
 
   const submitMutation = useMutation({
     mutationFn: async (mandateId: string) => {
@@ -122,9 +187,23 @@ export default function TenantMandatesPage() {
     return json.data?.mandateId as string;
   };
 
-  const handleUpload = async (mandateId: string, file: File) => {
-    setUploadingId(mandateId);
+  const uploadFile = async (file: File) => {
+    const targetPreview = previews[0];
+    if (!targetPreview) {
+      toast.error("Submit a Pay-for-Me request first");
+      return;
+    }
+
+    setUploading(true);
     try {
+      let mandateId = targetPreview.mandateId;
+      if (!mandateId) {
+        mandateId = await ensureDraftMandate(targetPreview.financingRequestId);
+      }
+      if (!mandateId) {
+        throw new Error("Could not prepare a mandate for this request");
+      }
+
       const formData = new FormData();
       formData.append("document", file);
       const res = await fetch(`/api/mandates/${mandateId}/upload`, {
@@ -133,115 +212,49 @@ export default function TenantMandatesPage() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message);
-      toast.success("Scanned mandate uploaded");
-      setSelectedFile(null);
+
+      toast.success("Mandate uploaded");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["mandates"] });
       queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
-      setUploadingId(null);
+      setUploading(false);
     }
   };
 
   const getMandateForPreview = (preview: MandatePreviewData) =>
     mandates.find((mandate) => mandate.id === preview.mandateId);
 
-  const selectedPreview =
-    previews.find((preview) => preview.financingRequestId === selectedFinancingRequestId) ??
-    previews[0];
-
-  const handleHeaderUpload = async () => {
-    if (!selectedPreview) {
-      toast.error("Submit a Pay-for-Me request first");
-      return;
-    }
-    if (!selectedFile) {
-      toast.error("Choose a scanned mandate file to upload");
-      return;
-    }
-
-    try {
-      let mandateId = selectedPreview.mandateId;
-      if (!mandateId) {
-        mandateId = await ensureDraftMandate(selectedPreview.financingRequestId);
-        await queryClient.invalidateQueries({ queryKey: ["mandate-overview"] });
-      }
-      if (!mandateId) {
-        throw new Error("Could not prepare a mandate for this request");
-      }
-      await handleUpload(mandateId, selectedFile);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
-    }
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Repayment mandates</h1>
-          <p className="text-muted-foreground">
-            Your mandate appears as soon as you submit a Pay-for-Me request. Repayment totals are
-            added after you accept the lender rate. You can also upload a bank-signed scanned
-            mandate.
-          </p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold">Repayment mandates</h1>
 
-        <div className="w-full shrink-0 rounded-xl border border-border bg-muted/20 p-4 lg:max-w-md">
-          <div className="mb-3 flex items-center gap-2">
-            <Upload className="h-4 w-4 text-emerald-600" />
-            <p className="text-sm font-medium">Upload scanned mandate</p>
-          </div>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="mandate-request-select">Pay-for-Me request</Label>
-              <Select
-                value={selectedPreview?.financingRequestId ?? ""}
-                onValueChange={setSelectedFinancingRequestId}
-                disabled={!previews.length}
-              >
-                <SelectTrigger id="mandate-request-select">
-                  <SelectValue
-                    placeholder={
-                      previews.length ? "Select request" : "Submit Pay-for-Me request first"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {previews.map((preview) => (
-                    <SelectItem key={preview.financingRequestId} value={preview.financingRequestId}>
-                      {preview.propertyName.replace(/^\[Demo\]\s*/i, "")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mandate-file-upload">Scanned form (PDF or image)</Label>
-              <Input
-                id="mandate-file-upload"
-                type="file"
-                accept=".pdf,image/*"
-                disabled={Boolean(uploadingId) || !previews.length}
-                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
-              disabled={Boolean(uploadingId) || !selectedFile || !previews.length}
-              onClick={handleHeaderUpload}
-            >
-              {uploadingId ? "Uploading..." : "Upload scanned mandate"}
-            </Button>
-            {!previews.length ? (
-              <p className="text-xs text-muted-foreground">
-                Submit a Pay-for-Me request from a listing to unlock mandate upload.
-              </p>
-            ) : null}
-          </div>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,application/pdf"
+            capture="environment"
+            className="hidden"
+            disabled={uploading || !previews.length}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadFile(file);
+            }}
+          />
+          <Button
+            type="button"
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700"
+            disabled={uploading || !previews.length}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {uploading ? "Uploading..." : "Upload mandate"}
+          </Button>
         </div>
       </div>
 
@@ -251,8 +264,7 @@ export default function TenantMandatesPage() {
         <Card>
           <CardContent className="space-y-3 py-12 text-center">
             <p className="text-muted-foreground">
-              Could not load mandates. Make sure PayRent-Backend is running on port 3001 if you use
-              split repos.
+              Could not load mandates. Make sure PayRent-Backend is running on port 3001.
             </p>
             <Button
               variant="outline"
@@ -266,10 +278,7 @@ export default function TenantMandatesPage() {
       ) : !previews.length ? (
         <Card>
           <CardContent className="space-y-3 py-12 text-center text-muted-foreground">
-            <p>
-              No Pay-for-Me requests yet. Submit a request from a listing and your mandate preview
-              will appear here right away.
-            </p>
+            <p>No mandates yet. Submit a Pay-for-Me request from a listing first.</p>
             <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
               <Link href="/properties">Browse listings</Link>
             </Button>
@@ -288,12 +297,6 @@ export default function TenantMandatesPage() {
                     <Link href="/dashboard/buyer/financing">Review lender offer</Link>
                   </Button>
                 </div>
-              ) : null}
-
-              {mandate?.documentUrl && mandate.mandateSource === "SCANNED_UPLOAD" ? (
-                <p className="text-xs text-muted-foreground">
-                  Scanned mandate uploaded. Submit it for admin review when you are ready.
-                </p>
               ) : null}
 
               {mandate &&

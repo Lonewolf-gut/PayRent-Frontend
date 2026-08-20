@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,31 +9,67 @@ import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { MANDATE_STATUS_LABELS } from "@/constants/platform";
 import { SecureFileLink } from "@/components/shared/secure-file-link";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { ExternalLink, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 type Mandate = {
   id: string;
   status: string;
   mandateSource: string;
   documentUrl?: string | null;
-  tenant?: { user?: { email: string } };
-  bankAccount?: { bankName: string; accountNumberMasked?: string };
-  financingRequest?: { property?: { name: string } };
+  createdAt: string;
+  submittedAt?: string | null;
+  tenant?: { fullName?: string; user?: { email: string } };
+  bankAccount?: { bankName: string; accountNumberMasked?: string; accountName?: string };
+  financingRequest?: {
+    property?: { name: string };
+    feeDisclosure?: {
+      principalAmount?: number | string;
+      totalRepayable?: number | string;
+    } | null;
+  };
 };
+
+const REVIEW_STATUSES = new Set(["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"]);
 
 export default function AdminMandatesPage() {
   const queryClient = useQueryClient();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [filter, setFilter] = useState<"all" | "pending" | "active" | "draft">("all");
 
-  const { data: mandates, isLoading } = useQuery({
+  const { data: mandates = [], isLoading } = useQuery({
     queryKey: ["admin-mandates"],
     queryFn: async () => {
-      const res = await fetch("/api/mandates");
+      const res = await fetch("/api/mandates?scope=all");
       const json = await res.json();
       return (json.data ?? []) as Mandate[];
     },
   });
+
+  const filteredMandates = useMemo(() => {
+    switch (filter) {
+      case "pending":
+        return mandates.filter((mandate) => REVIEW_STATUSES.has(mandate.status));
+      case "active":
+        return mandates.filter((mandate) => mandate.status === "ACTIVE");
+      case "draft":
+        return mandates.filter((mandate) =>
+          ["DRAFT", "PENDING_SUBMISSION"].includes(mandate.status)
+        );
+      default:
+        return mandates;
+    }
+  }, [filter, mandates]);
+
+  const pendingCount = mandates.filter((mandate) => REVIEW_STATUSES.has(mandate.status)).length;
+  const activeCount = mandates.filter((mandate) => mandate.status === "ACTIVE").length;
 
   const reviewMutation = useMutation({
     mutationFn: async ({
@@ -79,112 +115,219 @@ export default function AdminMandatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Mandate review</h1>
+        <h1 className="text-2xl font-bold">Mandates</h1>
         <p className="text-muted-foreground">
-          Approve scanned mandates, resolve bank exceptions, and activate repayment deductions.
+          All buyer repayment mandates generated on the platform. Review scanned uploads, resolve
+          bank exceptions, and track active mandates.
         </p>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Total mandates</p>
+            <p className="text-2xl font-bold">{mandates.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Pending review</p>
+            <p className="text-2xl font-bold text-amber-600">{pendingCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-xs text-muted-foreground">Active</p>
+            <p className="text-2xl font-bold text-emerald-600">{activeCount}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["all", "All"],
+            ["pending", "Pending review"],
+            ["active", "Active"],
+            ["draft", "Draft"],
+          ] as const
+        ).map(([value, label]) => (
+          <Button
+            key={value}
+            type="button"
+            size="sm"
+            variant={filter === value ? "default" : "outline"}
+            className={filter === value ? "bg-emerald-600 hover:bg-emerald-700" : undefined}
+            onClick={() => setFilter(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : !mandates?.length ? (
+      ) : !filteredMandates.length ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            No mandates pending review.
+            {mandates.length
+              ? "No mandates match this filter."
+              : "No mandates have been generated yet."}
           </CardContent>
         </Card>
       ) : (
-        mandates.map((mandate) => (
-          <Card key={mandate.id}>
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-base">{mandate.tenant?.user?.email}</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {mandate.financingRequest?.property?.name ?? "Financing mandate"} ·{" "}
-                  {mandate.bankAccount?.bankName} · {mandate.mandateSource.replace("_", " ")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Account {mandate.bankAccount?.accountNumberMasked ?? "—"}
-                </p>
-              </div>
-              <StatusBadge status={mandate.status} label={MANDATE_STATUS_LABELS[mandate.status]} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {mandate.documentUrl && (
-                <Button asChild size="sm" variant="outline">
-                  <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View mandate document
-                  </SecureFileLink>
-                </Button>
-              )}
+        <Accordion type="single" collapsible className="divide-y divide-border rounded-xl border">
+          {filteredMandates.map((mandate) => {
+            const buyerName = mandate.tenant?.fullName ?? mandate.tenant?.user?.email ?? "Buyer";
+            const propertyName =
+              mandate.financingRequest?.property?.name?.replace(/^\[Demo\]\s*/i, "") ??
+              "Financing mandate";
+            const principal = mandate.financingRequest?.feeDisclosure?.principalAmount;
+            const totalRepayable = mandate.financingRequest?.feeDisclosure?.totalRepayable;
 
-              {rejectId === mandate.id ? (
-                <div className="space-y-2 rounded-lg border p-4">
-                  <Label htmlFor={`reject-${mandate.id}`}>Rejection reason</Label>
-                  <Input
-                    id={`reject-${mandate.id}`}
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="Explain why the mandate was rejected"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={reviewMutation.isPending}
-                      onClick={() =>
-                        reviewMutation.mutate({
-                          id: mandate.id,
-                          decision: "REJECT",
-                          rejectedReason: rejectReason || "Rejected by administrator",
-                        })
-                      }
-                    >
-                      Confirm reject
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setRejectId(null)}>
-                      Cancel
-                    </Button>
+            return (
+              <AccordionItem key={mandate.id} value={mandate.id} className="border-0 px-4">
+                <AccordionTrigger className="py-4 hover:no-underline">
+                  <div className="flex flex-1 flex-col gap-2 pr-2 text-left sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">{buyerName}</p>
+                      <p className="truncate text-sm text-muted-foreground">{propertyName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {mandate.mandateSource.replace("_", " ")} ·{" "}
+                        {new Date(mandate.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      status={mandate.status}
+                      label={MANDATE_STATUS_LABELS[mandate.status] ?? mandate.status}
+                    />
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"].includes(mandate.status) && (
-                    <>
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700"
-                        disabled={reviewMutation.isPending}
-                        onClick={() => reviewMutation.mutate({ id: mandate.id, decision: "APPROVE" })}
-                      >
-                        Approve
+                </AccordionTrigger>
+
+                <AccordionContent className="pb-4">
+                  <div className="space-y-4 rounded-xl border border-border bg-muted/10 p-4">
+                    <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                      <Detail label="Buyer email" value={mandate.tenant?.user?.email ?? "—"} />
+                      <Detail label="Bank" value={mandate.bankAccount?.bankName ?? "—"} />
+                      <Detail
+                        label="Account"
+                        value={mandate.bankAccount?.accountNumberMasked ?? "—"}
+                      />
+                      <Detail
+                        label="Account name"
+                        value={mandate.bankAccount?.accountName ?? "—"}
+                      />
+                      <Detail label="Source" value={mandate.mandateSource.replace("_", " ")} />
+                      <Detail
+                        label="Created"
+                        value={new Date(mandate.createdAt).toLocaleString()}
+                      />
+                      {principal != null ? (
+                        <Detail
+                          label="Financed amount"
+                          value={`GHS ${Number(principal).toLocaleString()}`}
+                        />
+                      ) : null}
+                      {totalRepayable != null ? (
+                        <Detail
+                          label="Total repayable"
+                          value={`GHS ${Number(totalRepayable).toLocaleString()}`}
+                        />
+                      ) : null}
+                    </dl>
+
+                    {mandate.documentUrl ? (
+                      <Button asChild size="sm" variant="outline">
+                        <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          View mandate document
+                        </SecureFileLink>
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setRejectId(mandate.id)}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  )}
-                  {mandate.status === "BANK_PROCESSING" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={syncMutation.isPending}
-                      onClick={() => syncMutation.mutate(mandate.id)}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Poll bank status
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No uploaded document yet.</p>
+                    )}
+
+                    {rejectId === mandate.id ? (
+                      <div className="space-y-2 rounded-lg border p-4">
+                        <Label htmlFor={`reject-${mandate.id}`}>Rejection reason</Label>
+                        <Input
+                          id={`reject-${mandate.id}`}
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="Explain why the mandate was rejected"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={reviewMutation.isPending}
+                            onClick={() =>
+                              reviewMutation.mutate({
+                                id: mandate.id,
+                                decision: "REJECT",
+                                rejectedReason: rejectReason || "Rejected by administrator",
+                              })
+                            }
+                          >
+                            Confirm reject
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setRejectId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {REVIEW_STATUSES.has(mandate.status) ? (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              disabled={reviewMutation.isPending}
+                              onClick={() =>
+                                reviewMutation.mutate({ id: mandate.id, decision: "APPROVE" })
+                              }
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setRejectId(mandate.id)}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        ) : null}
+                        {mandate.status === "BANK_PROCESSING" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={syncMutation.isPending}
+                            onClick={() => syncMutation.mutate(mandate.id)}
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Poll bank status
+                          </Button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       )}
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 font-medium text-foreground">{value}</dd>
     </div>
   );
 }

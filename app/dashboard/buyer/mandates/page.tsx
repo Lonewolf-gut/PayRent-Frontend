@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MandatePreviewCard } from "@/components/mandates/mandate-preview-card";
+import { MandateAccordionList } from "@/components/mandates/mandate-accordion-list";
 import { buildMandatePreview, type MandatePreviewData } from "@/lib/utils/mandate-preview";
-import { RefreshCw, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { toast } from "sonner";
 
 type MandateRecord = {
@@ -63,7 +63,7 @@ async function fetchMandatePreviews(): Promise<MandatePreviewData[]> {
         body: JSON.stringify({ financingRequestId: request.id }),
       });
     } catch {
-      // continue — preview load may still work
+      // continue
     }
   }
 
@@ -91,7 +91,7 @@ async function fetchMandatePreviews(): Promise<MandatePreviewData[]> {
       property: request.property as { name?: string },
       tenant: request.tenant as {
         fullName?: string;
-        user?: { fullName?: string; email?: string };
+        user?: { email?: string };
       },
       feeDisclosure: request.feeDisclosure as {
         principalAmount?: number;
@@ -285,47 +285,14 @@ export default function TenantMandatesPage() {
           </CardContent>
         </Card>
       ) : (
-        previews.map((preview) => {
-          const mandate = getMandateForPreview(preview);
-          return (
-            <div key={preview.financingRequestId} className="space-y-4">
-              <MandatePreviewCard preview={preview} />
-
-              {preview.previewStatus === "awaiting_buyer" ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                    <Link href="/dashboard/buyer/financing">Review lender offer</Link>
-                  </Button>
-                </div>
-              ) : null}
-
-              {mandate &&
-              mandate.mandateSource === "SCANNED_UPLOAD" &&
-              ["PENDING_SUBMISSION", "DRAFT", "REJECTED"].includes(mandate.status) ? (
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  disabled={submitMutation.isPending || !mandate.documentUrl}
-                  onClick={() => submitMutation.mutate(mandate.id)}
-                >
-                  Submit scanned mandate for review
-                </Button>
-              ) : null}
-
-              {mandate && ["BANK_PROCESSING", "PENDING_MANUAL_RESOLUTION"].includes(mandate.status) ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={syncMutation.isPending}
-                  onClick={() => syncMutation.mutate(mandate.id)}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh bank status
-                </Button>
-              ) : null}
-            </div>
-          );
-        })
+        <MandateAccordionList
+          previews={previews}
+          getMandateForPreview={getMandateForPreview}
+          onSubmitScanned={(mandateId) => submitMutation.mutate(mandateId)}
+          onRefreshStatus={(mandateId) => syncMutation.mutate(mandateId)}
+          submitPending={submitMutation.isPending}
+          syncPending={syncMutation.isPending}
+        />
       )}
     </div>
   );

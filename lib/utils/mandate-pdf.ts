@@ -1,4 +1,5 @@
 import type { MandatePreviewData } from "@/lib/utils/mandate-preview";
+import { buildMandatePreview } from "@/lib/utils/mandate-preview";
 
 const BRAND_GREEN: [number, number, number] = [5, 150, 105];
 const MUTED: [number, number, number] = [100, 116, 139];
@@ -167,4 +168,56 @@ function formatStatus(preview: MandatePreviewData) {
     none: "Not available",
   };
   return labels[preview.previewStatus];
+}
+
+type AdminMandateForPdf = {
+  id: string;
+  status: string;
+  mandateSource: string;
+  documentUrl?: string | null;
+  tenant?: { fullName?: string; user?: { email?: string } };
+  bankAccount?: {
+    bankName?: string;
+    accountNumberMasked?: string;
+    accountName?: string;
+  };
+  financingRequest?: {
+    id: string;
+    status: string;
+    durationMonths: number;
+    requestedAmount: number | string;
+    approvedAmount?: number | string | null;
+    offeredInterestRate?: number | string | null;
+    buyerAcceptedAt?: Date | string | null;
+    property?: { name?: string | null };
+    feeDisclosure?: {
+      principalAmount?: number | string | null;
+      interestRate?: number | string | null;
+      totalRepayable?: number | string | null;
+      monthlyPayment?: number | string | null;
+    } | null;
+  } | null;
+};
+
+export function adminMandateToPreview(mandate: AdminMandateForPdf): MandatePreviewData {
+  const financing = mandate.financingRequest;
+  return buildMandatePreview({
+    id: financing?.id ?? mandate.id,
+    status: financing?.status ?? "UNKNOWN",
+    requestedAmount: financing?.requestedAmount ?? 0,
+    approvedAmount: financing?.approvedAmount ?? null,
+    offeredInterestRate: financing?.offeredInterestRate ?? null,
+    durationMonths: financing?.durationMonths ?? 0,
+    buyerAcceptedAt: financing?.buyerAcceptedAt ?? null,
+    property: financing?.property ?? null,
+    tenant: mandate.tenant ?? null,
+    feeDisclosure: financing?.feeDisclosure ?? null,
+    mandate: {
+      id: mandate.id,
+      status: mandate.status,
+      mandateSource: mandate.mandateSource,
+      documentUrl: mandate.documentUrl,
+      bankAccount: mandate.bankAccount ?? null,
+    },
+  });
 }

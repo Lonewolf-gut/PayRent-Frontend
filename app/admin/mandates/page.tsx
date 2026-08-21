@@ -15,8 +15,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, FileDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { adminMandateToPreview, downloadMandatePdf } from "@/lib/utils/mandate-pdf";
 
 type Mandate = {
   id: string;
@@ -28,12 +29,21 @@ type Mandate = {
   tenant?: { fullName?: string; user?: { email: string } };
   bankAccount?: { bankName: string; accountNumberMasked?: string; accountName?: string };
   financingRequest?: {
+    id: string;
+    status: string;
+    durationMonths: number;
+    requestedAmount: number | string;
+    approvedAmount?: number | string | null;
+    offeredInterestRate?: number | string | null;
+    buyerAcceptedAt?: string | null;
     property?: { name: string };
     feeDisclosure?: {
       principalAmount?: number | string;
+      interestRate?: number | string;
       totalRepayable?: number | string;
+      monthlyPayment?: number | string;
     } | null;
-  };
+  } | null;
 };
 
 const REVIEW_STATUSES = new Set(["ADMIN_REVIEW", "PENDING_MANUAL_RESOLUTION"]);
@@ -236,16 +246,36 @@ export default function AdminMandatesPage() {
                       ) : null}
                     </dl>
 
-                    {mandate.documentUrl ? (
-                      <Button asChild size="sm" variant="outline">
-                        <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          View mandate document
-                        </SecureFileLink>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await downloadMandatePdf(adminMandateToPreview(mandate));
+                          } catch {
+                            toast.error("Could not generate mandate PDF");
+                          }
+                        }}
+                      >
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Download mandate PDF
                       </Button>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">No uploaded document yet.</p>
-                    )}
+
+                      {mandate.documentUrl ? (
+                        <Button asChild size="sm" variant="outline">
+                          <SecureFileLink request={{ scope: "mandate", mandateId: mandate.id }}>
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            View uploaded document
+                          </SecureFileLink>
+                        </Button>
+                      ) : (
+                        <p className="flex items-center text-xs text-muted-foreground">
+                          No scanned upload yet.
+                        </p>
+                      )}
+                    </div>
 
                     {rejectId === mandate.id ? (
                       <div className="space-y-2 rounded-lg border p-4">
